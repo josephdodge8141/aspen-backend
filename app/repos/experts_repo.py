@@ -6,6 +6,7 @@ from app.models.workflows import Workflow
 from app.models.services import Service
 from app.models.common import ExpertStatus
 from app.schemas.experts import ExpertListItem, ExpertCreate, ExpertUpdate
+from app.mappers.experts import to_list_item, to_read
 
 
 class ExpertsRepo:
@@ -131,22 +132,8 @@ class ExpertsRepo:
 
         list_items = []
         for expert, workflows_count, services_count in results:
-            # Truncate prompt to 120 chars with ellipsis
-            prompt_truncated = expert.prompt
-            if len(prompt_truncated) > 120:
-                prompt_truncated = prompt_truncated[:120] + "…"
-
             list_items.append(
-                ExpertListItem(
-                    id=expert.id,
-                    name=expert.name,
-                    model_name=expert.model_name,
-                    status=expert.status,
-                    prompt_truncated=prompt_truncated,
-                    workflows_count=workflows_count or 0,
-                    services_count=services_count or 0,
-                    team_id=expert.team_id,
-                )
+                to_list_item(expert, workflows_count or 0, services_count or 0)
             )
 
         return list_items

@@ -20,6 +20,7 @@ from app.repos.experts_repo import (
 )
 from app.security.permissions import require_team_admin
 from app.services.templates import validate_template
+from app.mappers.experts import to_read
 
 
 class PreflightRequest(BaseModel):
@@ -68,7 +69,7 @@ async def create_expert_endpoint(
     require_team_admin(session, current_user, expert_data.team_id)
 
     expert = create_expert(session, expert_data)
-    return ExpertRead.model_validate(expert)
+    return to_read(expert)
 
 
 @router.get("/{expert_id}", response_model=Dict[str, Any])
@@ -111,7 +112,7 @@ async def update_expert_endpoint(
     require_team_admin(session, current_user, expert.team_id)
 
     updated_expert = update_expert(session, expert_id, expert_data)
-    return ExpertRead.model_validate(updated_expert)
+    return to_read(updated_expert)
 
 
 @router.post("/{expert_id}:archive", response_model=ExpertRead)
@@ -132,7 +133,7 @@ async def archive_expert(
     # Archive is idempotent - if already archived, keep the status
     archive_data = ExpertUpdate(status=ExpertStatus.archive)
     updated_expert = update_expert(session, expert_id, archive_data)
-    return ExpertRead.model_validate(updated_expert)
+    return to_read(updated_expert)
 
 
 @router.post("/{expert_id}:preflight", response_model=Dict[str, Any])
