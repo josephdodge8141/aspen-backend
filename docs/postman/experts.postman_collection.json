@@ -1,0 +1,497 @@
+{
+	"info": {
+		"_postman_id": "experts-api-collection",
+		"name": "Aspen Backend - Experts API",
+		"description": "Complete collection for testing Expert CRUD operations, workflow/service linking, and preflight validation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/health",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List Experts",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List Experts with Filters",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts?team_id={{teamId}}&status=active&status=draft",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts"
+					],
+					"query": [
+						{
+							"key": "team_id",
+							"value": "{{teamId}}"
+						},
+						{
+							"key": "status",
+							"value": "active"
+						},
+						{
+							"key": "status",
+							"value": "draft"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Expert (Expanded)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Expert",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Property Assistant\",\n  \"prompt\": \"You are a helpful assistant for property management. Help with tenant questions about {{base.property_info}} and respond to {{input.user_query}} professionally.\",\n  \"model_name\": \"gpt-4\",\n  \"status\": \"draft\",\n  \"input_params\": {\n    \"user_query\": {\n      \"type\": \"string\",\n      \"description\": \"The tenant's question\"\n    },\n    \"context\": {\n      \"type\": \"object\",\n      \"description\": \"Additional context\"\n    }\n  },\n  \"team_id\": {{teamId}}\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Expert",
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"Updated Property Assistant\",\n  \"status\": \"active\",\n  \"input_params\": {\n    \"user_query\": {\n      \"type\": \"string\",\n      \"description\": \"The tenant's question or request\"\n    },\n    \"priority\": {\n      \"type\": \"string\",\n      \"enum\": [\"low\", \"medium\", \"high\"],\n      \"default\": \"medium\"\n    }\n  }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Archive Expert",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}:archive",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}:archive"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Preflight Validation - Valid Template",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"prompt\": \"Hello {{base.tenant_name}}, your rent for {{input.property_address}} is due on {{base.due_date}}.\",\n  \"input_params\": {\n    \"property_address\": \"123 Main St\"\n  }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}:preflight",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}:preflight"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Preflight Validation - With Warnings",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"prompt\": \"Hello {{custom.tenant_name}}, your request about {{input.issue}} has been received.\",\n  \"input_params\": {\n    \"issue\": \"maintenance request\"\n  }\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}:preflight",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}:preflight"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Preflight Validation - With Errors",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"prompt\": \"Hello {{}}, your data {{base.items[0}} is ready.\",\n  \"input_params\": {}\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}:preflight",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}:preflight"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add Workflows to Expert",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"workflow_ids\": [{{workflowId}}]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}/workflows",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}",
+						"workflows"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Remove Workflow from Expert",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}/workflows/{{workflowId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}",
+						"workflows",
+						"{{workflowId}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Add Services to Expert",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"service_ids\": [{{serviceId}}]\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}/services",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}",
+						"services"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Remove Service from Expert",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{authToken}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/experts/{{expertId}}/services/{{serviceId}}",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"v1",
+						"experts",
+						"{{expertId}}",
+						"services",
+						"{{serviceId}}"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "your-jwt-token-here",
+			"type": "string"
+		},
+		{
+			"key": "teamId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "expertId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "workflowId",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "serviceId",
+			"value": "1",
+			"type": "string"
+		}
+	]
+} 

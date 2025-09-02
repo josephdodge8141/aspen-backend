@@ -6,10 +6,10 @@ Creates sample data for local development and testing.
 
 import hashlib
 import json
-from sqlmodel import Session
+from sqlmodel import Session, select
 from app.database import engine
 from app.models.team import Team, Member, TeamMember
-from app.models.experts import Expert
+from app.models.experts import Expert, ExpertWorkflow, ExpertService
 from app.models.workflows import Workflow, Node, NodeNode
 from app.models.services import Service
 from app.models.common import TeamRole, ExpertStatus, Environment, NodeType
@@ -24,6 +24,16 @@ def create_sample_data():
     """Create sample data for development"""
     with Session(engine) as session:
         print("🌱 Seeding development database...")
+
+        # Check if demo data already exists
+        existing_expert = session.exec(
+            select(Expert).where(Expert.name == "Demo Assistant")
+        ).first()
+        
+        if existing_expert:
+            print("✅ Demo data already exists, skipping seed")
+            print(f"   • Expert: {existing_expert.name} (uuid: {existing_expert.uuid})")
+            return
 
         # Create team
         team = Team(name="Demo Team")
@@ -63,7 +73,7 @@ def create_sample_data():
         for env in Environment:
             api_key = f"sk-demo-{env.value}-12345678901234567890"
             service = Service(
-                name=f"Demo Service",
+                name=f"Demo Service {env.value.title()}",
                 environment=env,
                 api_key_hash=hash_api_key(api_key),
                 api_key_last4=api_key[-4:],
@@ -80,11 +90,14 @@ def create_sample_data():
 
         # Create expert
         expert = Expert(
-            prompt="You are a helpful AI assistant that provides clear and concise answers. You are knowledgeable about software development, data analysis, and general problem-solving.",
+            prompt="You are a helpful AI assistant for property management. You can help with tenant inquiries, lease information, and maintenance requests. Use the provided context from {{base.property_data}} and respond to {{input.user_query}} in a friendly and professional manner.",
             name="Demo Assistant",
             model_name="gpt-4",
             status=ExpertStatus.active,
-            input_params={"temperature": 0.7, "max_tokens": 1000, "top_p": 1.0},
+            input_params={
+                "user_query": {"type": "string", "description": "The user's question or request"},
+                "context": {"type": "object", "description": "Additional context for the response"}
+            },
             team_id=team.id,
         )
         session.add(expert)
@@ -94,21 +107,23 @@ def create_sample_data():
 
         # Create workflow
         workflow = Workflow(
-            name="Demo Data Processing Workflow",
-            description="A sample workflow that demonstrates data processing with multiple steps",
+            name="Property Management Workflow",
+            description="A sample workflow for handling property management tasks and tenant inquiries",
             input_params={
-                "input_text": {
+                "tenant_query": {
                     "type": "string",
-                    "description": "Text to process",
+                    "description": "Tenant's question or request",
                     "required": True,
                 },
-                "processing_options": {
-                    "type": "object",
-                    "properties": {
-                        "sentiment_analysis": {"type": "boolean", "default": True},
-                        "keyword_extraction": {"type": "boolean", "default": True},
-                        "summarization": {"type": "boolean", "default": False},
-                    },
+                "property_id": {
+                    "type": "string",
+                    "description": "Property identifier",
+                    "required": True,
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": ["low", "medium", "high"],
+                    "default": "medium"
                 },
             },
             is_api=True,
@@ -126,63 +141,36 @@ def create_sample_data():
             workflow_id=workflow.id,
             node_type=NodeType.job,
             node_metadata={
-                "name": "Input Validation",
-                "description": "Validate and clean input text",
-                "config": {"min_length": 10, "max_length": 10000, "clean_html": True},
+                "name": "Input Processing",
+                "description": "Process and validate tenant query",
+                "config": {"validate_property_id": True, "sanitize_input": True},
             },
             structured_output={
                 "type": "object",
                 "properties": {
-                    "cleaned_text": {"type": "string"},
-                    "validation_status": {
-                        "type": "string",
-                        "enum": ["valid", "invalid"],
-                    },
-                    "word_count": {"type": "integer"},
+                    "processed_query": {"type": "string"},
+                    "property_context": {"type": "object"},
+                    "priority_level": {"type": "string"},
                 },
             },
         )
 
-        # Processing node
-        processing_node = Node(
+        # Expert node
+        expert_node = Node(
             workflow_id=workflow.id,
             node_type=NodeType.guru,
             node_metadata={
-                "name": "Text Analysis",
-                "description": "Analyze text for sentiment and keywords",
+                "name": "AI Assistant Response",
+                "description": "Generate response using the demo assistant",
                 "expert_id": expert.id,
-                "config": {"analysis_types": ["sentiment", "keywords", "entities"]},
+                "config": {"temperature": 0.7, "max_tokens": 500},
             },
             structured_output={
                 "type": "object",
                 "properties": {
-                    "sentiment": {"type": "object"},
-                    "keywords": {"type": "array", "items": {"type": "string"}},
-                    "entities": {"type": "array"},
-                },
-            },
-        )
-
-        # Filter node
-        filter_node = Node(
-            workflow_id=workflow.id,
-            node_type=NodeType.filter,
-            node_metadata={
-                "name": "Quality Filter",
-                "description": "Filter results based on confidence scores",
-                "config": {
-                    "min_confidence": 0.7,
-                    "filter_criteria": [
-                        "sentiment.confidence > 0.7",
-                        "keywords.length > 0",
-                    ],
-                },
-            },
-            structured_output={
-                "type": "object",
-                "properties": {
-                    "filtered_results": {"type": "object"},
-                    "filter_passed": {"type": "boolean"},
+                    "response": {"type": "string"},
+                    "confidence": {"type": "number"},
+                    "follow_up_needed": {"type": "boolean"},
                 },
             },
         )
@@ -192,21 +180,21 @@ def create_sample_data():
             workflow_id=workflow.id,
             node_type=NodeType.return_,
             node_metadata={
-                "name": "Format Output",
-                "description": "Format final results for API response",
-                "config": {"output_format": "json", "include_metadata": True},
+                "name": "Format Response",
+                "description": "Format final response for tenant",
+                "config": {"include_metadata": True, "format": "json"},
             },
             structured_output={
                 "type": "object",
                 "properties": {
-                    "analysis_results": {"type": "object"},
+                    "tenant_response": {"type": "string"},
                     "metadata": {"type": "object"},
-                    "processing_time_ms": {"type": "number"},
+                    "timestamp": {"type": "string"},
                 },
             },
         )
 
-        nodes = [input_node, processing_node, filter_node, output_node]
+        nodes = [input_node, expert_node, output_node]
         for node in nodes:
             session.add(node)
 
@@ -217,9 +205,8 @@ def create_sample_data():
 
         # Create workflow edges (linear flow)
         edges = [
-            NodeNode(parent_id=input_node.id, child_id=processing_node.id),
-            NodeNode(parent_id=processing_node.id, child_id=filter_node.id),
-            NodeNode(parent_id=filter_node.id, child_id=output_node.id),
+            NodeNode(parent_id=input_node.id, child_id=expert_node.id),
+            NodeNode(parent_id=expert_node.id, child_id=output_node.id),
         ]
 
         for edge in edges:
@@ -227,6 +214,19 @@ def create_sample_data():
 
         session.commit()
         print(f"✅ Created {len(edges)} workflow edges")
+
+        # Link expert to workflow
+        expert_workflow = ExpertWorkflow(expert_id=expert.id, workflow_id=workflow.id)
+        session.add(expert_workflow)
+        session.commit()
+        print(f"✅ Linked expert to workflow")
+
+        # Link expert to the production service
+        prod_service = next(s for s in services if s.environment == Environment.prod)
+        expert_service = ExpertService(expert_id=expert.id, service_id=prod_service.id)
+        session.add(expert_service)
+        session.commit()
+        print(f"✅ Linked expert to service: {prod_service.name} ({prod_service.environment.value})")
 
         print("\n🎉 Database seeding completed successfully!")
         print("\n📊 Summary:")
@@ -236,6 +236,9 @@ def create_sample_data():
         print(f"   • 1 expert: {expert.name}")
         print(f"   • 1 workflow: {workflow.name}")
         print(f"   • {len(nodes)} nodes, {len(edges)} edges")
+        print(f"   • Expert linked to 1 workflow and 1 service")
+        print(f"\n🔗 Expert UUID: {expert.uuid}")
+        print(f"🔗 Workflow UUID: {workflow.uuid}")
 
 
 if __name__ == "__main__":
