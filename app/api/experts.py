@@ -19,6 +19,12 @@ from app.repos.experts_repo import (
     remove_expert_service_link,
 )
 from app.security.permissions import require_team_admin
+from app.services.templates import validate_template
+
+
+class PreflightRequest(BaseModel):
+    prompt: str
+    input_params: Dict[str, Any]
 
 
 class WorkflowLinksRequest(BaseModel):
@@ -127,6 +133,25 @@ async def archive_expert(
     archive_data = ExpertUpdate(status=ExpertStatus.archive)
     updated_expert = update_expert(session, expert_id, archive_data)
     return ExpertRead.model_validate(updated_expert)
+
+
+@router.post("/{expert_id}:preflight", response_model=Dict[str, Any])
+async def preflight_expert_template(
+    expert_id: int,
+    request: PreflightRequest,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Validate expert template prompt and input parameters."""
+    # Check that expert exists (no need for team admin check since this is read-only validation)
+    expert = get_expert(session, expert_id)
+    if not expert:
+        raise HTTPException(status_code=404, detail="Expert not found")
+
+    # Validate the template
+    result = validate_template(request.prompt, request.input_params)
+    
+    return result
 
 
 @router.post("/{expert_id}/workflows", response_model=Dict[str, Any])
