@@ -5,7 +5,7 @@ from app.models.common import (
     TeamRole,
     Environment,
     NodeType,
-    TimestampMixin
+    TimestampMixin,
 )
 
 
@@ -49,7 +49,7 @@ def test_timestamp_mixin():
     class TestModel(TimestampMixin, table=True):
         __tablename__ = "test_model"
         id: int = Field(default=None, primary_key=True)
-    
+
     model = TestModel()
     assert isinstance(model.created_on, datetime)
     assert isinstance(model.updated_on, datetime)
@@ -59,7 +59,7 @@ def test_enum_round_trip():
     status = ExpertStatus.active
     assert status.value == "active"
     assert ExpertStatus(status.value) == ExpertStatus.active
-    
+
     role = TeamRole.admin
     assert role.value == "admin"
-    assert TeamRole(role.value) == TeamRole.admin 
+    assert TeamRole(role.value) == TeamRole.admin

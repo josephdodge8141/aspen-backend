@@ -18,7 +18,13 @@ class WorkflowsRepo:
         statement = select(Workflow).where(Workflow.uuid == uuid)
         return session.exec(statement).first()
 
-    def list(self, session: Session, *, team_id: Optional[int] = None, is_api: Optional[bool] = None) -> List[Workflow]:
+    def list(
+        self,
+        session: Session,
+        *,
+        team_id: Optional[int] = None,
+        is_api: Optional[bool] = None,
+    ) -> List[Workflow]:
         statement = select(Workflow)
         if team_id is not None:
             statement = statement.where(Workflow.team_id == team_id)
@@ -75,13 +81,16 @@ class WorkflowsRepo:
         return edge
 
     def get_edges(self, session: Session, workflow_id: int) -> List[NodeNode]:
-        statement = select(NodeNode).join(Node, NodeNode.parent_id == Node.id).where(Node.workflow_id == workflow_id)
+        statement = (
+            select(NodeNode)
+            .join(Node, NodeNode.parent_id == Node.id)
+            .where(Node.workflow_id == workflow_id)
+        )
         return session.exec(statement).all()
 
     def delete_edge(self, session: Session, parent_id: int, child_id: int) -> bool:
         statement = select(NodeNode).where(
-            NodeNode.parent_id == parent_id,
-            NodeNode.child_id == child_id
+            NodeNode.parent_id == parent_id, NodeNode.child_id == child_id
         )
         edge = session.exec(statement).first()
         if edge:
@@ -90,21 +99,27 @@ class WorkflowsRepo:
             return True
         return False
 
-    def add_service(self, session: Session, workflow_id: int, service_id: int) -> WorkflowService:
-        workflow_service = WorkflowService(workflow_id=workflow_id, service_id=service_id)
+    def add_service(
+        self, session: Session, workflow_id: int, service_id: int
+    ) -> WorkflowService:
+        workflow_service = WorkflowService(
+            workflow_id=workflow_id, service_id=service_id
+        )
         session.add(workflow_service)
         session.commit()
         session.refresh(workflow_service)
         return workflow_service
 
-    def remove_service(self, session: Session, workflow_id: int, service_id: int) -> bool:
+    def remove_service(
+        self, session: Session, workflow_id: int, service_id: int
+    ) -> bool:
         statement = select(WorkflowService).where(
             WorkflowService.workflow_id == workflow_id,
-            WorkflowService.service_id == service_id
+            WorkflowService.service_id == service_id,
         )
         workflow_service = session.exec(statement).first()
         if workflow_service:
             session.delete(workflow_service)
             session.commit()
             return True
-        return False 
+        return False

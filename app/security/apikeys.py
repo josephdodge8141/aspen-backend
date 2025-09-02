@@ -10,4 +10,4 @@ def generate_api_key() -> tuple[str, str, str]:
 
 
 def hash_api_key(plaintext: str) -> str:
-    return hashlib.sha256(plaintext.encode('utf-8')).hexdigest() 
+    return hashlib.sha256(plaintext.encode("utf-8")).hexdigest()

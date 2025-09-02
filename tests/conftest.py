@@ -22,7 +22,7 @@ def db_session(test_engine):
     connection = test_engine.connect()
     transaction = connection.begin()
     session = Session(bind=connection)
-    
+
     try:
         yield session
     finally:
@@ -47,4 +47,4 @@ def authenticated_client():
     with TestClient(app) as test_client:
         # TODO: Add authentication headers when auth is implemented
         # test_client.headers.update({"Authorization": "Bearer test-token"})
-        yield test_client 
+        yield test_client

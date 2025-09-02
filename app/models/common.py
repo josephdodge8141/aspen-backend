@@ -49,6 +49,6 @@ class TimestampMixin(SQLModel):
     updated_on: datetime = Field(default_factory=utc_now, nullable=False)
 
 
-@event.listens_for(TimestampMixin, 'before_update', propagate=True)
+@event.listens_for(TimestampMixin, "before_update", propagate=True)
 def update_timestamp(mapper, connection, target):
-    target.updated_on = datetime.now(timezone.utc) 
+    target.updated_on = datetime.now(timezone.utc)

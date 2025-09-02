@@ -8,7 +8,7 @@ def test_openapi_json_accessible():
     client = TestClient(app)
     response = client.get("/openapi.json")
     assert response.status_code == 200
-    
+
     schema = response.json()
     assert "openapi" in schema
     assert schema["info"]["title"] == "Aspen Backend"
@@ -20,15 +20,15 @@ def test_openapi_security_schemes():
     client = TestClient(app)
     response = client.get("/openapi.json")
     assert response.status_code == 200
-    
+
     schema = response.json()
-    
+
     # Check that security schemes exist
     assert "components" in schema
     assert "securitySchemes" in schema["components"]
-    
+
     security_schemes = schema["components"]["securitySchemes"]
-    
+
     # Check JWT bearer scheme
     assert "HTTPBearer" in security_schemes
     jwt_scheme = security_schemes["HTTPBearer"]
@@ -36,7 +36,7 @@ def test_openapi_security_schemes():
     assert jwt_scheme["scheme"] == "bearer"
     assert jwt_scheme["bearerFormat"] == "JWT"
     assert "JWT token for internal users" in jwt_scheme["description"]
-    
+
     # Check API key scheme
     assert "APIKeyHeader" in security_schemes
     api_key_scheme = security_schemes["APIKeyHeader"]
@@ -51,20 +51,20 @@ def test_openapi_tags():
     client = TestClient(app)
     response = client.get("/openapi.json")
     assert response.status_code == 200
-    
+
     schema = response.json()
-    
+
     # Check that tags exist
     assert "tags" in schema
     tags = {tag["name"]: tag for tag in schema["tags"]}
-    
+
     # Check expected tags
     expected_tags = ["Auth", "Experts", "Workflows", "Services"]
     for tag_name in expected_tags:
         assert tag_name in tags
         assert "description" in tags[tag_name]
         assert len(tags[tag_name]["description"]) > 0
-    
+
     # Check specific tag descriptions
     assert "Authentication endpoints" in tags["Auth"]["description"]
     assert "AI expert management" in tags["Experts"]["description"]
@@ -77,9 +77,9 @@ def test_auth_endpoints_use_correct_tags():
     client = TestClient(app)
     response = client.get("/openapi.json")
     assert response.status_code == 200
-    
+
     schema = response.json()
-    
+
     # Check that auth login endpoint has correct tag
     assert "paths" in schema
     assert "/api/v1/auth/login" in schema["paths"]
@@ -109,12 +109,12 @@ def test_openapi_login_endpoint_security():
     client = TestClient(app)
     response = client.get("/openapi.json")
     assert response.status_code == 200
-    
+
     schema = response.json()
-    
+
     # Login endpoint should not require security
     login_endpoint = schema["paths"]["/api/v1/auth/login"]["post"]
     # Security should either not be present or be an empty array
     security = login_endpoint.get("security", [])
     # Login endpoints typically don't require auth, so security should be empty or not present
-    assert len(security) == 0 or "security" not in login_endpoint 
+    assert len(security) == 0 or "security" not in login_endpoint

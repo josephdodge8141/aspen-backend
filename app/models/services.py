@@ -9,7 +9,7 @@ class Service(TimestampMixin, table=True):
     __table_args__ = (
         UniqueConstraint("name", "environment", name="uq_service_name_env"),
     )
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field()
     environment: Environment = Field()
@@ -22,7 +22,7 @@ class ServiceSegment(TimestampMixin, table=True):
     __table_args__ = (
         UniqueConstraint("service_id", "name", name="uq_service_segment_name"),
     )
-    
+
     id: Optional[int] = Field(default=None, primary_key=True)
     service_id: int = Field(foreign_key="services.id")
-    name: str = Field()  # Named segment schemas 
+    name: str = Field()  # Named segment schemas

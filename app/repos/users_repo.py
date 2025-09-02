@@ -17,11 +17,15 @@ class UsersRepo:
         statement = select(User).where(User.member_id == member_id)
         return session.exec(statement).first()
 
-    def get_by_service_user_id(self, session: Session, service_user_id: int) -> Optional[User]:
+    def get_by_service_user_id(
+        self, session: Session, service_user_id: int
+    ) -> Optional[User]:
         statement = select(User).where(User.service_user_id == service_user_id)
         return session.exec(statement).first()
 
-    def list(self, session: Session, *, has_member: Optional[bool] = None) -> List[User]:
+    def list(
+        self, session: Session, *, has_member: Optional[bool] = None
+    ) -> List[User]:
         statement = select(User)
         if has_member is not None:
             if has_member:
@@ -44,20 +48,32 @@ class UsersRepo:
             return True
         return False
 
-    def create_service_user(self, session: Session, service_user: ServiceUser) -> ServiceUser:
+    def create_service_user(
+        self, session: Session, service_user: ServiceUser
+    ) -> ServiceUser:
         session.add(service_user)
         session.commit()
         session.refresh(service_user)
         return service_user
 
-    def get_service_user(self, session: Session, service_user_id: int) -> Optional[ServiceUser]:
+    def get_service_user(
+        self, session: Session, service_user_id: int
+    ) -> Optional[ServiceUser]:
         return session.get(ServiceUser, service_user_id)
 
-    def get_service_user_by_hash(self, session: Session, segment_hash: bytes) -> Optional[ServiceUser]:
+    def get_service_user_by_hash(
+        self, session: Session, segment_hash: bytes
+    ) -> Optional[ServiceUser]:
         statement = select(ServiceUser).where(ServiceUser.segment_hash == segment_hash)
         return session.exec(statement).first()
 
-    def list_service_users(self, session: Session, *, user_id: Optional[int] = None, service_id: Optional[int] = None) -> List[ServiceUser]:
+    def list_service_users(
+        self,
+        session: Session,
+        *,
+        user_id: Optional[int] = None,
+        service_id: Optional[int] = None,
+    ) -> List[ServiceUser]:
         statement = select(ServiceUser)
         if user_id is not None:
             statement = statement.where(ServiceUser.user_id == user_id)
@@ -65,7 +81,9 @@ class UsersRepo:
             statement = statement.where(ServiceUser.service_id == service_id)
         return session.exec(statement).all()
 
-    def update_service_user(self, session: Session, service_user: ServiceUser) -> ServiceUser:
+    def update_service_user(
+        self, session: Session, service_user: ServiceUser
+    ) -> ServiceUser:
         session.add(service_user)
         session.commit()
         session.refresh(service_user)
@@ -77,4 +95,4 @@ class UsersRepo:
             session.delete(service_user)
             session.commit()
             return True
-        return False 
+        return False

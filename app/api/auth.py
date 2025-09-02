@@ -25,27 +25,23 @@ class LoginResponse(BaseModel):
 
 @router.post("/login", response_model=LoginResponse)
 def login(
-    request: LoginRequest,
-    session: Session = Depends(get_db_session)
+    request: LoginRequest, session: Session = Depends(get_db_session)
 ) -> LoginResponse:
     # Find user by email through Member relationship
     member = session.exec(select(Member).where(Member.email == request.email)).first()
     if not member:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     # Find user linked to this member
     user = session.exec(select(User).where(User.member_id == member.id)).first()
     if not user or not user.password_hash:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     # Verify password
     if not verify_password(request.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     # Create JWT token
     access_token = create_access_token(user_id=user.id)
-    
-    return LoginResponse(
-        access_token=access_token,
-        token_type="bearer"
-    ) 
+
+    return LoginResponse(access_token=access_token, token_type="bearer")

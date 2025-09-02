@@ -17,7 +17,7 @@ def test_expert_base_valid():
         "prompt": "You are a helpful assistant.",
         "model_name": "gpt-4",
         "status": ExpertStatus.active,
-        "input_params": {"temperature": 0.7}
+        "input_params": {"temperature": 0.7},
     }
     expert = ExpertBase(**data)
     assert expert.name == "Test Expert"
@@ -31,7 +31,7 @@ def test_expert_base_default_status():
         "name": "Test Expert",
         "prompt": "You are a helpful assistant.",
         "model_name": "gpt-4",
-        "input_params": {"temperature": 0.7}
+        "input_params": {"temperature": 0.7},
     }
     expert = ExpertBase(**data)
     assert expert.status == ExpertStatus.draft
@@ -44,7 +44,7 @@ def test_expert_create_inherits_base():
         "prompt": "You are a helpful assistant.",
         "model_name": "gpt-4",
         "input_params": {"temperature": 0.7},
-        "team_id": 123
+        "team_id": 123,
     }
     expert = ExpertCreate(**data)
     assert expert.team_id == 123
@@ -61,7 +61,7 @@ def test_expert_update_all_optional():
     assert expert.model_name is None
     assert expert.status is None
     assert expert.input_params is None
-    
+
     # Partial update should be valid
     expert = ExpertUpdate(name="Updated Name", status=ExpertStatus.active)
     assert expert.name == "Updated Name"
@@ -79,7 +79,7 @@ def test_expert_read_all_required():
         "model_name": "gpt-4",
         "status": ExpertStatus.active,
         "input_params": {"temperature": 0.7},
-        "team_id": 123
+        "team_id": 123,
     }
     expert = ExpertRead(**data)
     assert expert.id == 1
@@ -97,7 +97,7 @@ def test_expert_list_item_has_counts():
         "prompt_truncated": "You are a helpful...",
         "workflows_count": 3,
         "services_count": 2,
-        "team_id": 123
+        "team_id": 123,
     }
     expert = ExpertListItem(**data)
     assert expert.workflows_count == 3
@@ -112,11 +112,11 @@ def test_input_params_validation():
         "name": "Test Expert",
         "prompt": "You are a helpful assistant.",
         "model_name": "gpt-4",
-        "input_params": {"key": "value"}
+        "input_params": {"key": "value"},
     }
     expert = ExpertBase(**data)
     assert expert.input_params == {"key": "value"}
-    
+
     # Invalid type should raise validation error
     data["input_params"] = "not a dict"
     with pytest.raises(ValidationError):
@@ -129,15 +129,15 @@ def test_status_enum_validation():
         "name": "Test Expert",
         "prompt": "You are a helpful assistant.",
         "model_name": "gpt-4",
-        "input_params": {"temperature": 0.7}
+        "input_params": {"temperature": 0.7},
     }
-    
+
     # Valid enum values
     for status in ExpertStatus:
         data["status"] = status
         expert = ExpertBase(**data)
         assert expert.status == status
-    
+
     # Invalid status should raise validation error
     data["status"] = "invalid_status"
     with pytest.raises(ValidationError):
@@ -149,19 +149,13 @@ def test_required_fields_validation():
     # Missing name
     with pytest.raises(ValidationError) as exc_info:
         ExpertBase(
-            prompt="You are a helpful assistant.",
-            model_name="gpt-4",
-            input_params={}
+            prompt="You are a helpful assistant.", model_name="gpt-4", input_params={}
         )
     assert "name" in str(exc_info.value)
-    
+
     # Missing prompt
     with pytest.raises(ValidationError) as exc_info:
-        ExpertBase(
-            name="Test Expert",
-            model_name="gpt-4",
-            input_params={}
-        )
+        ExpertBase(name="Test Expert", model_name="gpt-4", input_params={})
     assert "prompt" in str(exc_info.value)
 
 
@@ -175,16 +169,16 @@ def test_schema_serialization():
         model_name="gpt-4",
         status=ExpertStatus.active,
         input_params={"temp": 0.7},
-        team_id=123
+        team_id=123,
     )
-    
+
     # Should serialize to dict
     data = expert.model_dump()
     assert data["id"] == 1
     assert data["status"] == "active"  # Enum serialized as string
     assert data["input_params"] == {"temp": 0.7}
-    
+
     # Should serialize to JSON string
     json_str = expert.model_dump_json()
     assert isinstance(json_str, str)
-    assert "Test Expert" in json_str 
+    assert "Test Expert" in json_str

@@ -42,4 +42,4 @@ class ExpertListItem(SQLModel):
     prompt_truncated: str
     workflows_count: int
     services_count: int
-    team_id: int 
+    team_id: int

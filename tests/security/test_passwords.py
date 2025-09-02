@@ -36,7 +36,7 @@ def test_hash_verify_round_trip():
         "unicode_test_ñ_emoji_🔑",
         "reasonably_long_password_but_not_extreme",
     ]
-    
+
     for password in passwords:
         hashed = hash_password(password)
         assert verify_password(password, hashed) is True
@@ -47,4 +47,4 @@ def test_empty_password():
     password = ""
     hashed = hash_password(password)
     assert verify_password(password, hashed) is True
-    assert verify_password("not_empty", hashed) is False 
+    assert verify_password("not_empty", hashed) is False

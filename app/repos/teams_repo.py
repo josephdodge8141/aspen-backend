@@ -67,17 +67,20 @@ class TeamsRepo:
             return True
         return False
 
-    def add_member_to_team(self, session: Session, team_id: int, member_id: int, role: TeamRole) -> TeamMember:
+    def add_member_to_team(
+        self, session: Session, team_id: int, member_id: int, role: TeamRole
+    ) -> TeamMember:
         team_member = TeamMember(team_id=team_id, member_id=member_id, role=role)
         session.add(team_member)
         session.commit()
         session.refresh(team_member)
         return team_member
 
-    def remove_member_from_team(self, session: Session, team_id: int, member_id: int) -> bool:
+    def remove_member_from_team(
+        self, session: Session, team_id: int, member_id: int
+    ) -> bool:
         statement = select(TeamMember).where(
-            TeamMember.team_id == team_id,
-            TeamMember.member_id == member_id
+            TeamMember.team_id == team_id, TeamMember.member_id == member_id
         )
         team_member = session.exec(statement).first()
         if team_member:
@@ -94,10 +97,11 @@ class TeamsRepo:
         statement = select(TeamMember).where(TeamMember.member_id == member_id)
         return session.exec(statement).all()
 
-    def update_member_role(self, session: Session, team_id: int, member_id: int, role: TeamRole) -> Optional[TeamMember]:
+    def update_member_role(
+        self, session: Session, team_id: int, member_id: int, role: TeamRole
+    ) -> Optional[TeamMember]:
         statement = select(TeamMember).where(
-            TeamMember.team_id == team_id,
-            TeamMember.member_id == member_id
+            TeamMember.team_id == team_id, TeamMember.member_id == member_id
         )
         team_member = session.exec(statement).first()
         if team_member:
@@ -106,4 +110,4 @@ class TeamsRepo:
             session.commit()
             session.refresh(team_member)
             return team_member
-        return None 
+        return None
