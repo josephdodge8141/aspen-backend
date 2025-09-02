@@ -1,0 +1,179 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: aspen_test
+          POSTGRES_USER: aspen_user
+          POSTGRES_PASSWORD: aspen_pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
+
+    - name: Install dependencies
+      run: poetry install --no-root
+
+    - name: Install package
+      run: poetry install
+
+    - name: Run linting
+      run: |
+        poetry run ruff check .
+        poetry run black --check .
+
+    - name: Run type checking
+      run: poetry run mypy .
+
+    - name: Test database connection
+      env:
+        DATABASE_URL: postgresql://aspen_user:aspen_pass@localhost:5432/aspen_test
+      run: |
+        poetry run python -c "
+        import psycopg2
+        conn = psycopg2.connect('postgresql://aspen_user:aspen_pass@localhost:5432/aspen_test')
+        print('Database connection successful')
+        conn.close()
+        "
+
+    - name: Run migrations
+      env:
+        DATABASE_URL: postgresql://aspen_user:aspen_pass@localhost:5432/aspen_test
+      run: |
+        poetry run alembic upgrade head
+        echo "Migrations applied successfully"
+
+    - name: Verify migration status
+      env:
+        DATABASE_URL: postgresql://aspen_user:aspen_pass@localhost:5432/aspen_test
+      run: |
+        poetry run alembic current
+        echo "Migration verification complete"
+
+    - name: Run tests
+      env:
+        DATABASE_URL: postgresql://aspen_user:aspen_pass@localhost:5432/aspen_test
+      run: |
+        poetry run pytest -v --tb=short
+
+    - name: Test migration rollback (optional)
+      env:
+        DATABASE_URL: postgresql://aspen_user:aspen_pass@localhost:5432/aspen_test
+      run: |
+        # Test rolling back one migration and re-applying
+        CURRENT=$(poetry run alembic current --verbose | grep "Rev:" | cut -d' ' -f2)
+        if [ ! -z "$CURRENT" ]; then
+          echo "Testing rollback from revision: $CURRENT"
+          poetry run alembic downgrade -1
+          poetry run alembic upgrade head
+          echo "Rollback test successful"
+        else
+          echo "No migrations to test rollback"
+        fi
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: false
+        tags: aspen-backend:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker image
+      run: |
+        docker run --rm aspen-backend:latest python -c "
+        import app.main
+        print('Docker image imports working')
+        "
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Start services
+      run: |
+        docker compose up -d
+        
+        # Wait for services to be ready
+        timeout 60s bash -c 'until docker compose exec db pg_isready -U aspen_user -d aspen_dev; do sleep 2; done'
+        timeout 60s bash -c 'until curl -f http://localhost:8000/health; do sleep 2; done'
+
+    - name: Run integration tests
+      run: |
+        # Test API endpoints
+        curl -f http://localhost:8000/ | grep "Aspen Backend API"
+        curl -f http://localhost:8000/health | grep "healthy"
+        
+        # Test database operations
+        docker compose exec app python -c "
+        from sqlmodel import Session
+        from app.database import engine
+        with Session(engine) as session:
+            print('Database integration working')
+        "
+
+    - name: Test seed script
+      run: |
+        docker compose exec app python -m scripts.seed_dev
+        echo "Seed script executed successfully"
+
+    - name: Clean up
+      if: always()
+      run: docker compose down -v 

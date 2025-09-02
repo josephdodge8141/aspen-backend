@@ -1,0 +1,182 @@
+from typing import Optional, List
+from sqlmodel import Session, select, func
+from sqlalchemy import and_
+from app.models.experts import Expert, ExpertService, ExpertWorkflow
+from app.models.workflows import Workflow
+from app.models.services import Service
+from app.models.common import ExpertStatus
+from app.schemas.experts import ExpertListItem
+
+
+class ExpertsRepo:
+    def create(self, session: Session, expert: Expert) -> Expert:
+        session.add(expert)
+        session.commit()
+        session.refresh(expert)
+        return expert
+
+    def get(self, session: Session, expert_id: int) -> Optional[Expert]:
+        return session.get(Expert, expert_id)
+
+    def get_by_uuid(self, session: Session, uuid: str) -> Optional[Expert]:
+        statement = select(Expert).where(Expert.uuid == uuid)
+        return session.exec(statement).first()
+
+    def list(self, session: Session, *, team_id: Optional[int] = None, status: Optional[str] = None) -> List[Expert]:
+        statement = select(Expert)
+        if team_id is not None:
+            statement = statement.where(Expert.team_id == team_id)
+        if status is not None:
+            statement = statement.where(Expert.status == status)
+        return session.exec(statement).all()
+
+    def update(self, session: Session, expert: Expert) -> Expert:
+        session.add(expert)
+        session.commit()
+        session.refresh(expert)
+        return expert
+
+    def delete(self, session: Session, expert_id: int) -> bool:
+        expert = session.get(Expert, expert_id)
+        if expert:
+            session.delete(expert)
+            session.commit()
+            return True
+        return False
+
+    def add_service(self, session: Session, expert_id: int, service_id: int) -> ExpertService:
+        expert_service = ExpertService(expert_id=expert_id, service_id=service_id)
+        session.add(expert_service)
+        session.commit()
+        session.refresh(expert_service)
+        return expert_service
+
+    def remove_service(self, session: Session, expert_id: int, service_id: int) -> bool:
+        statement = select(ExpertService).where(
+            ExpertService.expert_id == expert_id,
+            ExpertService.service_id == service_id
+        )
+        expert_service = session.exec(statement).first()
+        if expert_service:
+            session.delete(expert_service)
+            session.commit()
+            return True
+        return False
+
+    def add_workflow(self, session: Session, expert_id: int, workflow_id: int) -> ExpertWorkflow:
+        expert_workflow = ExpertWorkflow(expert_id=expert_id, workflow_id=workflow_id)
+        session.add(expert_workflow)
+        session.commit()
+        session.refresh(expert_workflow)
+        return expert_workflow
+
+    def remove_workflow(self, session: Session, expert_id: int, workflow_id: int) -> bool:
+        statement = select(ExpertWorkflow).where(
+            ExpertWorkflow.expert_id == expert_id,
+            ExpertWorkflow.workflow_id == workflow_id
+        )
+        expert_workflow = session.exec(statement).first()
+        if expert_workflow:
+            session.delete(expert_workflow)
+            session.commit()
+            return True
+        return False
+
+    def list_with_counts(
+        self, 
+        session: Session, 
+        *, 
+        team_id: Optional[int] = None, 
+        status: Optional[List[ExpertStatus]] = None
+    ) -> List[ExpertListItem]:
+        # Build the base query with JOINs and aggregates
+        workflow_count = (
+            select(func.count(ExpertWorkflow.workflow_id))
+            .where(ExpertWorkflow.expert_id == Expert.id)
+            .scalar_subquery()
+        )
+        
+        service_count = (
+            select(func.count(ExpertService.service_id))
+            .where(ExpertService.expert_id == Expert.id)
+            .scalar_subquery()
+        )
+        
+        statement = select(
+            Expert,
+            workflow_count.label("workflows_count"),
+            service_count.label("services_count")
+        )
+        
+        # Apply filters
+        if team_id is not None:
+            statement = statement.where(Expert.team_id == team_id)
+        
+        if status is not None:
+            statement = statement.where(Expert.status.in_(status))
+        
+        # Execute query and build result
+        results = session.exec(statement).all()
+        
+        list_items = []
+        for expert, workflows_count, services_count in results:
+            # Truncate prompt to 120 chars with ellipsis
+            prompt_truncated = expert.prompt
+            if len(prompt_truncated) > 120:
+                prompt_truncated = prompt_truncated[:120] + "…"
+            
+            list_items.append(ExpertListItem(
+                id=expert.id,
+                name=expert.name,
+                model_name=expert.model_name,
+                status=expert.status,
+                prompt_truncated=prompt_truncated,
+                workflows_count=workflows_count or 0,
+                services_count=services_count or 0,
+                team_id=expert.team_id
+            ))
+        
+        return list_items
+
+    def get_with_expanded(self, session: Session, expert_id: int) -> Optional[dict]:
+        # Get the expert
+        expert = session.get(Expert, expert_id)
+        if not expert:
+            return None
+        
+        # Get linked workflows with names
+        workflow_stmt = (
+            select(Workflow.id, Workflow.name)
+            .join(ExpertWorkflow, ExpertWorkflow.workflow_id == Workflow.id)
+            .where(ExpertWorkflow.expert_id == expert_id)
+        )
+        workflows = [
+            {"id": wf_id, "name": wf_name} 
+            for wf_id, wf_name in session.exec(workflow_stmt).all()
+        ]
+        
+        # Get linked services with names and environment
+        service_stmt = (
+            select(Service.id, Service.name, Service.environment)
+            .join(ExpertService, ExpertService.service_id == Service.id)
+            .where(ExpertService.expert_id == expert_id)
+        )
+        services = [
+            {"id": svc_id, "name": svc_name, "environment": svc_env.value}
+            for svc_id, svc_name, svc_env in session.exec(service_stmt).all()
+        ]
+        
+        return {
+            "expert": {
+                "id": expert.id,
+                "uuid": expert.uuid,
+                "name": expert.name,
+                "prompt": expert.prompt,
+                "model_name": expert.model_name,
+                "status": expert.status,
+                "input_params": expert.input_params,
+                "team_id": expert.team_id
+            },
+            "workflows": workflows,
+            "services": services
+        } 
