@@ -336,3 +336,114 @@ def get_with_expanded(session: Session, expert_id: int) -> Optional[dict]:
         "workflows": workflows,
         "services": services,
     }
+
+# Standalone functions for workflow link management
+def add_expert_workflow_links(session: Session, expert_id: int, workflow_ids: list[int]) -> dict:
+    """Add workflow links to an expert. Returns updated expanded view."""
+    from app.models.workflows import Workflow
+    
+    # Validate expert exists
+    expert = session.get(Expert, expert_id)
+    if not expert:
+        raise ValueError(f"Expert with id {expert_id} not found")
+    
+    # Validate all workflows exist
+    for workflow_id in workflow_ids:
+        workflow = session.get(Workflow, workflow_id)
+        if not workflow:
+            raise ValueError(f"Workflow with id {workflow_id} not found")
+    
+    # Add links (ignore duplicates)
+    for workflow_id in workflow_ids:
+        # Check if link already exists
+        existing = session.exec(
+            select(ExpertWorkflow).where(
+                ExpertWorkflow.expert_id == expert_id,
+                ExpertWorkflow.workflow_id == workflow_id
+            )
+        ).first()
+        
+        if not existing:
+            expert_workflow = ExpertWorkflow(expert_id=expert_id, workflow_id=workflow_id)
+            session.add(expert_workflow)
+    
+    session.commit()
+    
+    # Return updated expanded view
+    return get_with_expanded(session, expert_id)
+
+
+def remove_expert_workflow_link(session: Session, expert_id: int, workflow_id: int) -> bool:
+    """Remove a workflow link from an expert. Returns True if removed, False if not found."""
+    # Validate expert exists
+    expert = session.get(Expert, expert_id)
+    if not expert:
+        raise ValueError(f"Expert with id {expert_id} not found")
+    
+    # Find and remove the link
+    statement = select(ExpertWorkflow).where(
+        ExpertWorkflow.expert_id == expert_id,
+        ExpertWorkflow.workflow_id == workflow_id,
+    )
+    expert_workflow = session.exec(statement).first()
+    if expert_workflow:
+        session.delete(expert_workflow)
+        session.commit()
+        return True
+    return False
+
+
+# Standalone functions for service link management
+def add_expert_service_links(session: Session, expert_id: int, service_ids: list[int]) -> dict:
+    """Add service links to an expert. Returns updated expanded view."""
+    from app.models.services import Service
+    
+    # Validate expert exists
+    expert = session.get(Expert, expert_id)
+    if not expert:
+        raise ValueError(f"Expert with id {expert_id} not found")
+    
+    # Validate all services exist
+    for service_id in service_ids:
+        service = session.get(Service, service_id)
+        if not service:
+            raise ValueError(f"Service with id {service_id} not found")
+    
+    # Add links (ignore duplicates)
+    for service_id in service_ids:
+        # Check if link already exists
+        existing = session.exec(
+            select(ExpertService).where(
+                ExpertService.expert_id == expert_id,
+                ExpertService.service_id == service_id
+            )
+        ).first()
+        
+        if not existing:
+            expert_service = ExpertService(expert_id=expert_id, service_id=service_id)
+            session.add(expert_service)
+    
+    session.commit()
+    
+    # Return updated expanded view
+    return get_with_expanded(session, expert_id)
+
+
+def remove_expert_service_link(session: Session, expert_id: int, service_id: int) -> bool:
+    """Remove a service link from an expert. Returns True if removed, False if not found."""
+    # Validate expert exists
+    expert = session.get(Expert, expert_id)
+    if not expert:
+        raise ValueError(f"Expert with id {expert_id} not found")
+    
+    # Find and remove the link
+    statement = select(ExpertService).where(
+        ExpertService.expert_id == expert_id,
+        ExpertService.service_id == service_id,
+    )
+    expert_service = session.exec(statement).first()
+    if expert_service:
+        session.delete(expert_service)
+        session.commit()
+        return True
+    return False

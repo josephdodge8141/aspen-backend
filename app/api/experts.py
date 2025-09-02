@@ -13,8 +13,20 @@ from app.repos.experts_repo import (
     update_expert,
     list_with_counts,
     get_with_expanded,
+    add_expert_workflow_links,
+    remove_expert_workflow_link,
+    add_expert_service_links,
+    remove_expert_service_link,
 )
 from app.security.permissions import require_team_admin
+
+
+class WorkflowLinksRequest(BaseModel):
+    workflow_ids: List[int]
+
+
+class ServiceLinksRequest(BaseModel):
+    service_ids: List[int]
 
 
 router = APIRouter(prefix="/api/v1/experts", tags=["Experts"])
@@ -115,3 +127,105 @@ async def archive_expert(
     archive_data = ExpertUpdate(status=ExpertStatus.archive)
     updated_expert = update_expert(session, expert_id, archive_data)
     return ExpertRead.model_validate(updated_expert)
+
+
+@router.post("/{expert_id}/workflows", response_model=Dict[str, Any])
+async def add_workflows_to_expert(
+    expert_id: int,
+    request: WorkflowLinksRequest,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Add workflow links to an expert. Returns updated expanded view."""
+    # Get current expert to check team
+    expert = get_expert(session, expert_id)
+    if not expert:
+        raise HTTPException(status_code=404, detail="Expert not found")
+
+    # Check team admin permission for current expert's team
+    require_team_admin(session, current_user, expert.team_id)
+
+    try:
+        # Add workflow links and return expanded view
+        return add_expert_workflow_links(session, expert_id, request.workflow_ids)
+    except ValueError as e:
+        if "Workflow with id" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{expert_id}/workflows/{workflow_id}", status_code=204)
+async def remove_workflow_from_expert(
+    expert_id: int,
+    workflow_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Remove a workflow link from an expert."""
+    # Get current expert to check team
+    expert = get_expert(session, expert_id)
+    if not expert:
+        raise HTTPException(status_code=404, detail="Expert not found")
+
+    # Check team admin permission for current expert's team
+    require_team_admin(session, current_user, expert.team_id)
+
+    try:
+        # Remove workflow link
+        removed = remove_expert_workflow_link(session, expert_id, workflow_id)
+        if not removed:
+            # Link didn't exist, but that's fine for DELETE (idempotent)
+            pass
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/{expert_id}/services", response_model=Dict[str, Any])
+async def add_services_to_expert(
+    expert_id: int,
+    request: ServiceLinksRequest,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Add service links to an expert. Returns updated expanded view."""
+    # Get current expert to check team
+    expert = get_expert(session, expert_id)
+    if not expert:
+        raise HTTPException(status_code=404, detail="Expert not found")
+
+    # Check team admin permission for current expert's team
+    require_team_admin(session, current_user, expert.team_id)
+
+    try:
+        # Add service links and return expanded view
+        return add_expert_service_links(session, expert_id, request.service_ids)
+    except ValueError as e:
+        if "Service with id" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{expert_id}/services/{service_id}", status_code=204)
+async def remove_service_from_expert(
+    expert_id: int,
+    service_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """Remove a service link from an expert."""
+    # Get current expert to check team
+    expert = get_expert(session, expert_id)
+    if not expert:
+        raise HTTPException(status_code=404, detail="Expert not found")
+
+    # Check team admin permission for current expert's team
+    require_team_admin(session, current_user, expert.team_id)
+
+    try:
+        # Remove service link
+        removed = remove_expert_service_link(session, expert_id, service_id)
+        if not removed:
+            # Link didn't exist, but that's fine for DELETE (idempotent)
+            pass
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
