@@ -28,6 +28,7 @@ openai = "^1.57.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
 pytest-asyncio = "^0.24.0"
+pytest-cov = "^4.0.0"
 httpx = "^0.28.0"
 black = "^24.10.0"
 ruff = "^0.8.0"
@@ -35,7 +36,9 @@ mypy = "^1.13.0"
 taskipy = "^1.13.0"
 
 [tool.taskipy.tasks]
-test = "pytest"
+test = "pytest --tb=short --disable-warnings -v"
+test-fast = "pytest --tb=no --disable-warnings -q"
+test-coverage = "pytest --tb=short --disable-warnings -v --cov=app --cov-report=term-missing"
 lint = "ruff check ."
 format = "black ."
 type-check = "mypy ."
