@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from sqlmodel import Session, select, func
 from sqlalchemy import and_
 
@@ -169,3 +169,16 @@ def get_expanded(session: Session, workflow_id: int) -> Optional[Dict[str, Any]]
         "experts": experts_list,
         "services": services_list,
     }
+
+
+def get_nodes_and_edges(session: Session, workflow_id: int) -> Tuple[List[Node], List[NodeNode]]:
+    """Get all nodes and edges for a workflow."""
+    # Get nodes
+    nodes_statement = select(Node).where(Node.workflow_id == workflow_id)
+    nodes = session.exec(nodes_statement).all()
+    
+    # Get edges
+    edges_statement = select(NodeNode).where(NodeNode.workflow_id == workflow_id)
+    edges = session.exec(edges_statement).all()
+    
+    return list(nodes), list(edges)

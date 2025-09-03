@@ -11,13 +11,22 @@ class NodeExecutionError(RuntimeError):
 
 
 class NodeService(Protocol):
-    def validate(self, metadata: Dict[str, Any], structured_output: Dict[str, Any]) -> None:
+    def validate(
+        self, metadata: Dict[str, Any], structured_output: Dict[str, Any]
+    ) -> None:
         pass
-    
-    def plan(self, metadata: Dict[str, Any], inputs_shape: Dict[str, Any], structured_output: Dict[str, Any]) -> Dict[str, Any]:
+
+    def plan(
+        self,
+        metadata: Dict[str, Any],
+        inputs_shape: Dict[str, Any],
+        structured_output: Dict[str, Any],
+    ) -> Dict[str, Any]:
         pass
-    
-    def execute(self, inputs: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
+
+    def execute(
+        self, inputs: Dict[str, Any], metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
         pass
 
 
@@ -35,11 +44,26 @@ def register_service(node_type: NodeType, service: NodeService) -> None:
 
 
 class DefaultNodeService:
-    def validate(self, metadata: Dict[str, Any], structured_output: Dict[str, Any]) -> None:
-        raise NodeValidationError(f"Node service not implemented - validation not available")
-    
-    def plan(self, metadata: Dict[str, Any], inputs_shape: Dict[str, Any], structured_output: Dict[str, Any]) -> Dict[str, Any]:
-        raise NodeExecutionError(f"Node service not implemented - planning not available")
-    
-    def execute(self, inputs: Dict[str, Any], metadata: Dict[str, Any]) -> Dict[str, Any]:
-        raise NodeExecutionError(f"Node service not implemented - execution not available") 
+    def validate(
+        self, metadata: Dict[str, Any], structured_output: Dict[str, Any]
+    ) -> None:
+        raise NodeValidationError(
+            f"Node service not implemented - validation not available"
+        )
+
+    def plan(
+        self,
+        metadata: Dict[str, Any],
+        inputs_shape: Dict[str, Any],
+        structured_output: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        raise NodeExecutionError(
+            f"Node service not implemented - planning not available"
+        )
+
+    def execute(
+        self, inputs: Dict[str, Any], metadata: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        raise NodeExecutionError(
+            f"Node service not implemented - execution not available"
+        )

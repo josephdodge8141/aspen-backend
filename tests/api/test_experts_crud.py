@@ -328,7 +328,10 @@ class TestUpdateExpert:
         )
         assert response.status_code == 422
         # Pydantic v2 error message for dict type validation
-        assert "dict_type" in response.text or "Input should be a valid dictionary" in response.text
+        assert (
+            "dict_type" in response.text
+            or "Input should be a valid dictionary" in response.text
+        )
 
     def test_update_expert_not_found(self, client, test_data, auth_headers):
         """Test updating non-existent expert."""

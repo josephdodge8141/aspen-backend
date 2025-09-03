@@ -38,36 +38,36 @@ class TestJSONataEvaluation:
 
     def test_empty_expression_raises_error(self):
         data = {"name": "John"}
-        
+
         with pytest.raises(JSONataError, match="Expression cannot be empty"):
             evaluate_jsonata("", data)
-        
+
         with pytest.raises(JSONataError, match="Expression cannot be empty"):
             evaluate_jsonata("   ", data)
 
     def test_non_string_expression_raises_error(self):
         data = {"name": "John"}
-        
+
         with pytest.raises(JSONataError, match="Expression must be a string"):
             evaluate_jsonata(123, data)
 
     def test_invalid_syntax_raises_error(self):
         data = {"name": "John"}
-        
+
         with pytest.raises(JSONataError, match="Evaluation failed"):
             evaluate_jsonata("invalid..syntax", data)
 
     def test_error_with_path_context(self):
         data = {"name": "John"}
-        
+
         with pytest.raises(JSONataError) as exc_info:
             evaluate_jsonata("", data, path="mapping.total")
-        
+
         assert "mapping.total" in str(exc_info.value)
 
     def test_timeout_handling(self):
         data = {"items": list(range(1000))}
-        
+
         # This should complete quickly
         result = evaluate_jsonata("$count(items)", data, timeout_seconds=1.0)
         assert result == 1000
@@ -82,10 +82,10 @@ class TestJSONataEvaluation:
             "orders": [
                 {"id": 1, "customer": "Alice", "total": 100},
                 {"id": 2, "customer": "Bob", "total": 200},
-                {"id": 3, "customer": "Alice", "total": 150}
+                {"id": 3, "customer": "Alice", "total": 150},
             ]
         }
-        
+
         # Use simpler expression that works with jsonata-python
         result = evaluate_jsonata("orders[0].customer", data)
         assert result == "Alice"
@@ -114,7 +114,7 @@ class TestJSONataSyntaxValidation:
     def test_validation_with_path_context(self):
         with pytest.raises(JSONataError) as exc_info:
             validate_jsonata_syntax("", path="body_map.user_id")
-        
+
         assert "body_map.user_id" in str(exc_info.value)
 
 
@@ -155,4 +155,4 @@ class TestJSONataErrorTypes:
     def test_timeout_error_formatting(self):
         error = JSONataTimeoutError("test.expression", 5.0)
         assert "timed out after 5.0s" in str(error)
-        assert "test.expression" in str(error) 
+        assert "test.expression" in str(error)

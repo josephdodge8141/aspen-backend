@@ -44,15 +44,11 @@ class RunRegistry:
 
     def create(self, kind: str) -> RunState:
         run_id = str(uuid.uuid4())
-        run_state = RunState(
-            run_id=run_id,
-            kind=kind,
-            started_at=time.time()
-        )
-        
+        run_state = RunState(run_id=run_id, kind=kind, started_at=time.time())
+
         with self.lock:
             self.runs[run_id] = run_state
-        
+
         return run_state
 
     def get(self, run_id: str) -> RunState | None:
@@ -64,7 +60,7 @@ class RunRegistry:
             run_state = self.runs.get(run_id)
             if run_state is None:
                 return
-            
+
             run_state.events.append(event)
             try:
                 run_state.q.put_nowait(event)
@@ -76,7 +72,7 @@ class RunRegistry:
             run_state = self.runs.get(run_id)
             if run_state is None:
                 return
-            
+
             run_state.finished_at = time.time()
 
     def pop_next(self, run_id: str, timeout: float = 20.0) -> RunEvent | None:
@@ -84,7 +80,7 @@ class RunRegistry:
             run_state = self.runs.get(run_id)
             if run_state is None:
                 return None
-        
+
         try:
             return run_state.q.get(timeout=timeout)
         except queue.Empty:
@@ -93,7 +89,7 @@ class RunRegistry:
     def gc(self) -> None:
         current_time = time.time()
         to_remove = []
-        
+
         with self.lock:
             for run_id, run_state in self.runs.items():
                 # Remove if finished and past TTL, or if started more than 2*TTL ago (stuck runs)
@@ -102,7 +98,7 @@ class RunRegistry:
                         to_remove.append(run_id)
                 elif current_time - run_state.started_at > (self.ttl_seconds * 2):
                     to_remove.append(run_id)
-            
+
             for run_id in to_remove:
                 del self.runs[run_id]
 
@@ -112,4 +108,4 @@ class RunRegistry:
             self._gc_thread.join(timeout=1.0)
 
 
-REGISTRY = RunRegistry() 
+REGISTRY = RunRegistry()

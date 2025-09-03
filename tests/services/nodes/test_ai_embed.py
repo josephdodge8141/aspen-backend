@@ -14,37 +14,29 @@ class TestEmbedService:
             "input_selector": "input.order.items[*].description",
             "id_selector": "input.order.id",
             "metadata_map": {"customer": "input.customer.id"},
-            "upsert": True
+            "upsert": True,
         }
         structured_output = {}
-        
+
         self.service.validate(metadata, structured_output)
 
     def test_validate_minimal_metadata(self):
-        metadata = {
-            "vector_store_id": "vs_test",
-            "input_selector": "input.text"
-        }
+        metadata = {"vector_store_id": "vs_test", "input_selector": "input.text"}
         structured_output = {}
-        
+
         self.service.validate(metadata, structured_output)
 
     def test_validate_missing_required_fields(self):
-        metadata = {
-            "vector_store_id": "vs_test"
-        }
+        metadata = {"vector_store_id": "vs_test"}
         structured_output = {}
-        
+
         with pytest.raises(NodeValidationError, match="Invalid embed metadata"):
             self.service.validate(metadata, structured_output)
 
     def test_validate_empty_vector_store_id(self):
-        metadata = {
-            "vector_store_id": "",
-            "input_selector": "input.text"
-        }
+        metadata = {"vector_store_id": "", "input_selector": "input.text"}
         structured_output = {}
-        
+
         with pytest.raises(NodeValidationError, match="Invalid embed metadata"):
             self.service.validate(metadata, structured_output)
 
@@ -52,32 +44,28 @@ class TestEmbedService:
         metadata = {
             "vector_store_id": "vs_test",
             "input_selector": "input.text",
-            "unknown_field": "value"
+            "unknown_field": "value",
         }
         structured_output = {}
-        
-        with pytest.raises(NodeValidationError, match="Unknown fields in metadata: unknown_field"):
+
+        with pytest.raises(
+            NodeValidationError, match="Unknown fields in metadata: unknown_field"
+        ):
             self.service.validate(metadata, structured_output)
 
     def test_plan_returns_expected_shape(self):
-        metadata = {
-            "vector_store_id": "vs_test",
-            "input_selector": "input.text"
-        }
+        metadata = {"vector_store_id": "vs_test", "input_selector": "input.text"}
         inputs_shape = {"text": "string"}
         structured_output = {}
-        
+
         result = self.service.plan(metadata, inputs_shape, structured_output)
-        
+
         assert result == {"embedded": "boolean", "count": "number"}
 
     def test_execute_returns_expected_result(self):
         inputs = {"text": "Sample text"}
-        metadata = {
-            "vector_store_id": "vs_test",
-            "input_selector": "input.text"
-        }
-        
+        metadata = {"vector_store_id": "vs_test", "input_selector": "input.text"}
+
         result = self.service.execute(inputs, metadata)
-        
-        assert result == {"embedded": True, "count": 1} 
+
+        assert result == {"embedded": True, "count": 1}

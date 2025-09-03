@@ -31,7 +31,7 @@ class TestMetaCommon:
             timeout_ms=5000,
             retry=3,
             on_error="fail",
-            tags=["test", "example"]
+            tags=["test", "example"],
         )
         assert meta.name == "Test Node"
         assert meta.timeout_ms == 5000
@@ -48,7 +48,7 @@ class TestMetaCommon:
     def test_invalid_timeout(self):
         with pytest.raises(ValidationError):
             MetaCommon(timeout_ms=0)
-        
+
         with pytest.raises(ValidationError):
             MetaCommon(timeout_ms=-100)
 
@@ -65,7 +65,7 @@ class TestMetaJob:
             temperature=0.7,
             max_tokens=500,
             stop=["END"],
-            system="You are a helpful assistant"
+            system="You are a helpful assistant",
         )
         assert meta.prompt == "Summarize the following text: {{ input.text }}"
         assert meta.model_name == "gpt-4o-mini"
@@ -75,14 +75,14 @@ class TestMetaJob:
     def test_required_fields(self):
         with pytest.raises(ValidationError):
             MetaJob()
-        
+
         with pytest.raises(ValidationError):
             MetaJob(prompt="test")
 
     def test_temperature_validation(self):
         with pytest.raises(ValidationError):
             MetaJob(prompt="test", model_name="gpt-4", temperature=-0.1)
-        
+
         with pytest.raises(ValidationError):
             MetaJob(prompt="test", model_name="gpt-4", temperature=2.1)
 
@@ -95,7 +95,7 @@ class TestMetaEmbed:
             input_selector="input.order.items[*].description",
             id_selector="input.order.id",
             metadata_map={"customer": "input.customer.id"},
-            upsert=True
+            upsert=True,
         )
         assert meta.vector_store_id == "vs_customers"
         assert meta.input_selector == "input.order.items[*].description"
@@ -104,7 +104,7 @@ class TestMetaEmbed:
     def test_required_fields(self):
         with pytest.raises(ValidationError):
             MetaEmbed()
-        
+
         with pytest.raises(ValidationError):
             MetaEmbed(vector_store_id="vs_test")
 
@@ -115,7 +115,7 @@ class TestMetaGuru:
             space="support-faqs",
             query_template="FAQ for {{ input.topic }}",
             top_k=5,
-            filters={"language": "en"}
+            filters={"language": "en"},
         )
         assert meta.space == "support-faqs"
         assert meta.query_template == "FAQ for {{ input.topic }}"
@@ -131,7 +131,7 @@ class TestMetaGetAPI:
         meta = MetaGetAPI(
             url="https://api.example.com/search",
             headers={"X-Client": "workflow-engine"},
-            query_map={"q": "input.query", "limit": "5"}
+            query_map={"q": "input.query", "limit": "5"},
         )
         assert str(meta.url) == "https://api.example.com/search"
         assert meta.headers["X-Client"] == "workflow-engine"
@@ -147,25 +147,21 @@ class TestMetaPostAPI:
             url="https://api.example.com/orders",
             headers={"Authorization": "Bearer token"},
             body_map={"user_id": "input.user.id"},
-            content_type=ContentType.json
+            content_type=ContentType.json,
         )
         assert str(meta.url) == "https://api.example.com/orders"
         assert meta.content_type == ContentType.json
 
     def test_content_type_enum(self):
         meta = MetaPostAPI(
-            url="https://api.example.com/form",
-            content_type=ContentType.form
+            url="https://api.example.com/form", content_type=ContentType.form
         )
         assert meta.content_type == "application/x-www-form-urlencoded"
 
 
 class TestMetaFilter:
     def test_valid_filter_metadata(self):
-        meta = MetaFilter(
-            items_selector="input.items",
-            where="$.price > 20"
-        )
+        meta = MetaFilter(items_selector="input.items", where="$.price > 20")
         assert meta.where == "$.price > 20"
 
     def test_required_where(self):
@@ -179,7 +175,7 @@ class TestMetaMap:
             mapping={
                 "customer_id": "input.customer.id",
                 "total": "input.items.sum($.price)",
-                "count": 5
+                "count": 5,
             }
         )
         assert len(meta.mapping) == 3
@@ -202,9 +198,7 @@ class TestMetaIfElse:
 class TestMetaForEach:
     def test_valid_for_each_metadata(self):
         meta = MetaForEach(
-            items_selector="input.orders[*]",
-            concurrency=5,
-            flatten=True
+            items_selector="input.orders[*]", concurrency=5, flatten=True
         )
         assert meta.items_selector == "input.orders[*]"
         assert meta.concurrency == 5
@@ -231,23 +225,18 @@ class TestMetaMerge:
 
 class TestMetaSplit:
     def test_valid_split_group_by(self):
-        meta = MetaSplit(
-            by="input.items[*].category",
-            mode=SplitMode.group_by
-        )
+        meta = MetaSplit(by="input.items[*].category", mode=SplitMode.group_by)
         assert meta.by == "input.items[*].category"
         assert meta.mode == SplitMode.group_by
 
     def test_valid_split_chunk(self):
-        meta = MetaSplit(
-            by="input.items",
-            mode=SplitMode.chunk,
-            chunk_size=10
-        )
+        meta = MetaSplit(by="input.items", mode=SplitMode.chunk, chunk_size=10)
         assert meta.chunk_size == 10
 
     def test_chunk_mode_requires_size(self):
-        with pytest.raises(ValueError, match="chunk_size is required when mode is 'chunk'"):
+        with pytest.raises(
+            ValueError, match="chunk_size is required when mode is 'chunk'"
+        ):
             MetaSplit(by="input.items", mode=SplitMode.chunk)
 
 
@@ -268,7 +257,7 @@ class TestMetaReturn:
         meta = MetaReturn(
             payload_selector="{ answer: input.answer, steps: input.steps }",
             content_type=ContentType.json,
-            status_code=200
+            status_code=200,
         )
         assert meta.payload_selector == "{ answer: input.answer, steps: input.steps }"
         assert meta.status_code == 200
@@ -276,7 +265,7 @@ class TestMetaReturn:
     def test_status_code_validation(self):
         with pytest.raises(ValidationError):
             MetaReturn(payload_selector="input", status_code=99)
-        
+
         with pytest.raises(ValidationError):
             MetaReturn(payload_selector="input", status_code=600)
 
@@ -286,7 +275,7 @@ class TestMetaWorkflowCall:
         meta = MetaWorkflowCall(
             workflow_id=42,
             input_mapping={"question": "input.user_question"},
-            propagate_identity=True
+            propagate_identity=True,
         )
         assert meta.workflow_id == 42
         assert meta.propagate_identity is True
@@ -294,10 +283,10 @@ class TestMetaWorkflowCall:
     def test_workflow_id_validation(self):
         with pytest.raises(ValidationError):
             MetaWorkflowCall(workflow_id=0)
-        
+
         with pytest.raises(ValidationError):
             MetaWorkflowCall(workflow_id=-1)
 
     def test_wait_validation(self):
         with pytest.raises(ValidationError):
-            MetaWorkflowCall(workflow_id=1, wait="async") 
+            MetaWorkflowCall(workflow_id=1, wait="async")

@@ -7,21 +7,25 @@ from app.services.nodes.base import NodeValidationError
 def validate_structured_output(structured_output: Dict[str, Any]) -> None:
     if not isinstance(structured_output, dict):
         raise NodeValidationError("structured_output must be a dictionary")
-    
+
     if not structured_output:
         return
-    
+
     try:
         if "type" in structured_output:
             jsonschema.Draft7Validator.check_schema(structured_output)
     except JsonSchemaValidationError as e:
-        raise NodeValidationError(f"Invalid JSON schema in structured_output: {e.message}")
+        raise NodeValidationError(
+            f"Invalid JSON schema in structured_output: {e.message}"
+        )
 
 
-def extract_shape_from_structured_output(structured_output: Dict[str, Any]) -> Dict[str, Any]:
+def extract_shape_from_structured_output(
+    structured_output: Dict[str, Any]
+) -> Dict[str, Any]:
     if not structured_output:
         return {}
-    
+
     if structured_output.get("type") == "object" and "properties" in structured_output:
         shape = {}
         for key, prop_schema in structured_output["properties"].items():
@@ -35,7 +39,7 @@ def extract_shape_from_structured_output(structured_output: Dict[str, Any]) -> D
 
 def _get_type_from_schema(schema: Dict[str, Any]) -> Union[str, Dict[str, Any]]:
     schema_type = schema.get("type", "unknown")
-    
+
     if schema_type == "object" and "properties" in schema:
         nested_shape = {}
         for key, prop_schema in schema["properties"].items():
@@ -72,4 +76,4 @@ def _type_name(value: Any) -> str:
     elif value is None:
         return "null"
     else:
-        return "unknown" 
+        return "unknown"

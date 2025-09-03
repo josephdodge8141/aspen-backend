@@ -4,7 +4,6 @@ from app.models.experts import Expert, ExpertStatus
 from app.schemas.experts import ExpertListItem, ExpertRead
 
 
-
 class TestToListItem:
     @pytest.fixture
     def sample_expert(self):
@@ -34,7 +33,6 @@ class TestToListItem:
         assert result.services_count == 3
         assert result.team_id == 10
 
-
     def test_to_list_item_zero_counts(self, sample_expert):
         """Test list item with zero workflow and service counts."""
         result = to_list_item(sample_expert, workflows_count=0, services_count=0)
@@ -49,8 +47,6 @@ class TestToListItem:
         result = to_list_item(sample_expert, workflows_count=1, services_count=1)
 
         assert result.status == ExpertStatus.archive
-
-
 
 
 class TestToRead:
@@ -150,8 +146,6 @@ class TestMapperIntegration:
             model_name="gpt-4",
             team_id=10,
         )
-
-
 
     def test_consistent_basic_fields(self, sample_expert):
         """Test that basic fields are consistent between list and read DTOs."""

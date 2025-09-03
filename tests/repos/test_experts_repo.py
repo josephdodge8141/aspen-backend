@@ -239,7 +239,6 @@ def test_list_with_counts_combined_filters(
     assert seed_data["experts"][0].name in combined_names  # expert1
 
 
-
 def test_list_with_counts_returns_expert_list_items(
     db_session: Session, experts_repo: ExpertsRepo, seed_data
 ):

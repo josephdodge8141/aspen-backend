@@ -32,11 +32,19 @@ register_service(NodeType.return_, ReturnService())
 # Register default service for unimplemented node types
 default_service = DefaultNodeService()
 implemented_types = {
-    NodeType.job, NodeType.embed, NodeType.guru, NodeType.get_api, NodeType.post_api,
-    NodeType.vector_query, NodeType.filter, NodeType.map, NodeType.if_else, 
-    NodeType.merge, NodeType.return_
+    NodeType.job,
+    NodeType.embed,
+    NodeType.guru,
+    NodeType.get_api,
+    NodeType.post_api,
+    NodeType.vector_query,
+    NodeType.filter,
+    NodeType.map,
+    NodeType.if_else,
+    NodeType.merge,
+    NodeType.return_,
 }
 
 for node_type in NodeType:
     if node_type not in implemented_types:
-        register_service(node_type, default_service) 
+        register_service(node_type, default_service)

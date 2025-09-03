@@ -86,7 +86,7 @@ class MetaFilter(MetaCommon):
 class MetaMap(MetaCommon):
     mapping: Dict[str, Union[str, int, bool]]
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_mapping_not_empty(self):
         if not self.mapping:
             raise ValueError("mapping cannot be empty")
@@ -113,7 +113,7 @@ class MetaSplit(MetaCommon):
     mode: Optional[SplitMode] = SplitMode.group_by
     chunk_size: Optional[int] = Field(None, gt=0)
 
-    @model_validator(mode='after')
+    @model_validator(mode="after")
     def validate_chunk_size_when_chunk_mode(self):
         if self.mode == SplitMode.chunk and not self.chunk_size:
             raise ValueError("chunk_size is required when mode is 'chunk'")
@@ -134,4 +134,4 @@ class MetaWorkflowCall(MetaCommon):
     workflow_id: int = Field(gt=0)
     input_mapping: Optional[Dict[str, str]] = None
     propagate_identity: Optional[bool] = True
-    wait: Optional[str] = Field("sync", pattern="^sync$") 
+    wait: Optional[str] = Field("sync", pattern="^sync$")
