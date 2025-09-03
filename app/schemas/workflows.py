@@ -74,4 +74,4 @@ class EdgeRead(SQLModel):
     id: int
     parent_id: int
     child_id: int
-    branch_label: Optional[str] 
+    branch_label: Optional[str]

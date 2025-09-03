@@ -29,7 +29,7 @@ def create_sample_data():
         existing_expert = session.exec(
             select(Expert).where(Expert.name == "Demo Assistant")
         ).first()
-        
+
         if existing_expert:
             print("✅ Demo data already exists, skipping seed")
             print(f"   • Expert: {existing_expert.name} (uuid: {existing_expert.uuid})")
@@ -95,8 +95,14 @@ def create_sample_data():
             model_name="gpt-4",
             status=ExpertStatus.active,
             input_params={
-                "user_query": {"type": "string", "description": "The user's question or request"},
-                "context": {"type": "object", "description": "Additional context for the response"}
+                "user_query": {
+                    "type": "string",
+                    "description": "The user's question or request",
+                },
+                "context": {
+                    "type": "object",
+                    "description": "Additional context for the response",
+                },
             },
             team_id=team.id,
         )
@@ -123,7 +129,7 @@ def create_sample_data():
                 "priority": {
                     "type": "string",
                     "enum": ["low", "medium", "high"],
-                    "default": "medium"
+                    "default": "medium",
                 },
             },
             is_api=True,
@@ -226,7 +232,9 @@ def create_sample_data():
         expert_service = ExpertService(expert_id=expert.id, service_id=prod_service.id)
         session.add(expert_service)
         session.commit()
-        print(f"✅ Linked expert to service: {prod_service.name} ({prod_service.environment.value})")
+        print(
+            f"✅ Linked expert to service: {prod_service.name} ({prod_service.environment.value})"
+        )
 
         print("\n🎉 Database seeding completed successfully!")
         print("\n📊 Summary:")

@@ -151,7 +151,7 @@ async def preflight_expert_template(
 
     # Validate the template
     result = validate_template(request.prompt, request.input_params)
-    
+
     return result
 
 

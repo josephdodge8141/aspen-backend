@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.api.deps import get_db_session, get_current_user
 from app.models.users import User
@@ -19,6 +19,9 @@ from app.schemas.workflows import (
 from app.repos.workflows_repo import list_with_counts, get_expanded
 from app.security.permissions import require_team_admin
 from app.lib.cron import is_valid_cron
+from app.services.dag_validate import validate_dag, validate_workflow_triggers
+from app.services.dag_plan import plan_workflow
+from app.services.dag_available import available_data_map
 
 router = APIRouter(prefix="/api/v1/workflows", tags=["Workflows"])
 
@@ -42,11 +45,11 @@ async def create_workflow(
     """Create a new workflow."""
     # Check team admin permission
     require_team_admin(current_user, workflow_data.team_id)
-    
+
     # Validate cron schedule if provided
     if workflow_data.cron_schedule and not is_valid_cron(workflow_data.cron_schedule):
         raise HTTPException(status_code=400, detail="Invalid cron schedule format")
-    
+
     # Create workflow
     workflow = Workflow(
         name=workflow_data.name,
@@ -56,11 +59,11 @@ async def create_workflow(
         cron_schedule=workflow_data.cron_schedule,
         team_id=workflow_data.team_id,
     )
-    
+
     session.add(workflow)
     session.commit()
     session.refresh(workflow)
-    
+
     return WorkflowRead(
         id=workflow.id,
         uuid=workflow.uuid,
@@ -83,7 +86,7 @@ async def get_workflow_expanded(
     result = get_expanded(session, workflow_id)
     if not result:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
+
     return result
 
 
@@ -98,23 +101,23 @@ async def update_workflow(
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
+
     # Check team admin permission
     require_team_admin(current_user, workflow.team_id)
-    
+
     # Validate cron schedule if provided
     if workflow_data.cron_schedule and not is_valid_cron(workflow_data.cron_schedule):
         raise HTTPException(status_code=400, detail="Invalid cron schedule format")
-    
+
     # Update fields
     update_data = workflow_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(workflow, field, value)
-    
+
     session.add(workflow)
     session.commit()
     session.refresh(workflow)
-    
+
     return WorkflowRead(
         id=workflow.id,
         uuid=workflow.uuid,
@@ -137,13 +140,13 @@ async def archive_workflow(
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
+
     # Check team admin permission
     require_team_admin(current_user, workflow.team_id)
-    
+
     # For now, we'll just keep the record (UI will hide by convention)
     # In the future, we might add an 'archived' status field
-    
+
     return WorkflowRead(
         id=workflow.id,
         uuid=workflow.uuid,
@@ -169,12 +172,12 @@ async def create_node(
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
+
     # Check team admin permission
     require_team_admin(current_user, workflow.team_id)
-    
+
     # TODO: Call node service validate() (stubbed in E5) to validate metadata and structured_output
-    
+
     # Create node
     node = Node(
         workflow_id=workflow_id,
@@ -182,11 +185,11 @@ async def create_node(
         node_metadata=node_data.node_metadata,
         structured_output=node_data.structured_output,
     )
-    
+
     session.add(node)
     session.commit()
     session.refresh(node)
-    
+
     return NodeRead(
         id=node.id,
         node_type=node.node_type,
@@ -208,26 +211,26 @@ async def update_node(
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
+
     # Check team admin permission
     require_team_admin(current_user, workflow.team_id)
-    
+
     # Get the node and verify it belongs to the workflow
     node = session.get(Node, node_id)
     if not node or node.workflow_id != workflow_id:
         raise HTTPException(status_code=404, detail="Node not found")
-    
+
     # TODO: Call node service validate() (stubbed in E5) to validate metadata and structured_output
-    
+
     # Update fields
     update_data = node_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(node, field, value)
-    
+
     session.add(node)
     session.commit()
     session.refresh(node)
-    
+
     return NodeRead(
         id=node.id,
         node_type=node.node_type,
@@ -248,19 +251,19 @@ async def delete_node(
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
+
     # Check team admin permission
     require_team_admin(current_user, workflow.team_id)
-    
+
     # Get the node and verify it belongs to the workflow
     node = session.get(Node, node_id)
     if not node or node.workflow_id != workflow_id:
         raise HTTPException(status_code=404, detail="Node not found")
-    
+
     # Delete the node (FK cascade will handle edges)
     session.delete(node)
     session.commit()
-    
+
     return Response(status_code=204)
 
 
@@ -277,31 +280,31 @@ async def create_edge(
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
+
     # Check team admin permission
     require_team_admin(current_user, workflow.team_id)
-    
+
     # Verify both nodes belong to the workflow
     parent_node = session.get(Node, edge_data.parent_id)
     child_node = session.get(Node, edge_data.child_id)
-    
+
     if not parent_node or parent_node.workflow_id != workflow_id:
         raise HTTPException(status_code=400, detail="Parent node not found in workflow")
-    
+
     if not child_node or child_node.workflow_id != workflow_id:
         raise HTTPException(status_code=400, detail="Child node not found in workflow")
-    
+
     # Reject self-edge
     if edge_data.parent_id == edge_data.child_id:
         raise HTTPException(status_code=400, detail="Self-edges are not allowed")
-    
+
     # Create edge (unique constraint will handle duplicates)
     edge = NodeNode(
         parent_id=edge_data.parent_id,
         child_id=edge_data.child_id,
         branch_label=edge_data.branch_label,
     )
-    
+
     try:
         session.add(edge)
         session.commit()
@@ -311,7 +314,7 @@ async def create_edge(
         if "duplicate" in str(e).lower() or "unique" in str(e).lower():
             raise HTTPException(status_code=409, detail="Edge already exists")
         raise HTTPException(status_code=500, detail="Failed to create edge")
-    
+
     return EdgeRead(
         id=edge.id,
         parent_id=edge.parent_id,
@@ -332,22 +335,121 @@ async def delete_edge(
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    
+
     # Check team admin permission
     require_team_admin(current_user, workflow.team_id)
-    
+
     # Get the edge and verify it belongs to the workflow
     edge = session.get(NodeNode, edge_id)
     if not edge:
         raise HTTPException(status_code=404, detail="Edge not found")
-    
+
     # Verify the edge belongs to nodes in this workflow
     parent_node = session.get(Node, edge.parent_id)
     if not parent_node or parent_node.workflow_id != workflow_id:
         raise HTTPException(status_code=404, detail="Edge not found")
-    
+
     # Delete the edge
     session.delete(edge)
     session.commit()
-    
-    return Response(status_code=204) 
+
+    return Response(status_code=204)
+
+
+@router.post("/{workflow_id}:validate")
+async def validate_workflow(
+    workflow_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Validate workflow DAG and triggers."""
+    # Get workflow and verify access
+    workflow = session.get(Workflow, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    # Get nodes and edges for this workflow
+    nodes = session.exec(select(Node).where(Node.workflow_id == workflow_id)).all()
+
+    edges = session.exec(
+        select(NodeNode)
+        .join(Node, NodeNode.parent_id == Node.id)
+        .where(Node.workflow_id == workflow_id)
+    ).all()
+
+    # Validate DAG structure
+    dag_result = validate_dag(list(nodes), list(edges))
+
+    # Validate triggers
+    trigger_warnings = validate_workflow_triggers(workflow)
+
+    # Combine results
+    all_warnings = dag_result.warnings + trigger_warnings
+
+    return {
+        "errors": dag_result.errors,
+        "warnings": all_warnings,
+        "topo_order": dag_result.topo_order,
+    }
+
+
+@router.post("/{workflow_id}:plan")
+async def plan_workflow_execution(
+    workflow_id: int,
+    request_body: Dict[str, Any],
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Plan workflow execution with shape propagation."""
+    # Get workflow and verify access
+    workflow = session.get(Workflow, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    # Extract starting inputs from request body
+    starting_inputs = request_body.get("starting_inputs", {})
+
+    # Get nodes and edges for this workflow
+    nodes = session.exec(select(Node).where(Node.workflow_id == workflow_id)).all()
+
+    edges = session.exec(
+        select(NodeNode)
+        .join(Node, NodeNode.parent_id == Node.id)
+        .where(Node.workflow_id == workflow_id)
+    ).all()
+
+    # Plan the workflow
+    planned_steps = plan_workflow(
+        list(nodes), list(edges), starting_inputs=starting_inputs
+    )
+
+    return {"steps": [step.model_dump() for step in planned_steps]}
+
+
+@router.get("/{workflow_id}/available-data")
+async def get_available_data(
+    workflow_id: int,
+    session: Session = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Get available data for each node in the workflow."""
+    # Get workflow and verify access
+    workflow = session.get(Workflow, workflow_id)
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    # Get nodes and edges for this workflow
+    nodes = session.exec(select(Node).where(Node.workflow_id == workflow_id)).all()
+
+    edges = session.exec(
+        select(NodeNode)
+        .join(Node, NodeNode.parent_id == Node.id)
+        .where(Node.workflow_id == workflow_id)
+    ).all()
+
+    # Compute available data map
+    available_data = available_data_map(list(nodes), list(edges))
+
+    return {
+        "by_node_id": {str(node_id): data for node_id, data in available_data.items()}
+    }

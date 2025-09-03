@@ -3,7 +3,7 @@ from app.services.templates import (
     extract_placeholders,
     validate_placeholders,
     validate_template,
-    TEMPLATE_RE
+    TEMPLATE_RE,
 )
 
 
@@ -35,7 +35,10 @@ class TestExtractPlaceholders:
         """Test extracting complex JSONata expressions."""
         text = "Result: {{base.items[0].name}} and {{input.data.filter($$.type = 'active')}}"
         placeholders = extract_placeholders(text)
-        assert placeholders == ["base.items[0].name", "input.data.filter($$.type = 'active')"]
+        assert placeholders == [
+            "base.items[0].name",
+            "input.data.filter($$.type = 'active')",
+        ]
 
     def test_extract_empty_placeholder(self):
         """Test extracting empty placeholders."""
@@ -105,9 +108,9 @@ class TestValidateTemplate:
         """Test validation of a valid template."""
         prompt = "Hello {{base.name}}, your score is {{input.score}}"
         input_params = {"score": 95}
-        
+
         result = validate_template(prompt, input_params)
-        
+
         assert result["placeholders"] == ["base.name", "input.score"]
         assert result["warnings"] == []
         assert result["errors"] == []
@@ -116,9 +119,9 @@ class TestValidateTemplate:
         """Test validation with warnings."""
         prompt = "Hello {{custom.name}}, score: {{input.score}}"
         input_params = {"score": 95}
-        
+
         result = validate_template(prompt, input_params)
-        
+
         assert result["placeholders"] == ["custom.name", "input.score"]
         assert len(result["warnings"]) == 1
         assert "Unknown root in placeholder: {{custom.name}}" in result["warnings"][0]
@@ -128,9 +131,9 @@ class TestValidateTemplate:
         """Test validation with errors."""
         prompt = "Hello {{}}, score: {{base.items[0}}"
         input_params = {}
-        
+
         result = validate_template(prompt, input_params)
-        
+
         assert result["placeholders"] == ["", "base.items[0"]
         assert result["warnings"] == []
         assert len(result["errors"]) == 2
@@ -141,9 +144,9 @@ class TestValidateTemplate:
         """Test validation with both warnings and errors."""
         prompt = "Hello {{custom.name}}, empty: {{}}, score: {{input.score}}"
         input_params = {"score": 95}
-        
+
         result = validate_template(prompt, input_params)
-        
+
         assert len(result["placeholders"]) == 3
         assert len(result["warnings"]) == 1
         assert len(result["errors"]) == 1
@@ -154,9 +157,9 @@ class TestValidateTemplate:
         """Test validation of template with no placeholders."""
         prompt = "Hello world, no placeholders here"
         input_params = {}
-        
+
         result = validate_template(prompt, input_params)
-        
+
         assert result["placeholders"] == []
         assert result["warnings"] == []
         assert result["errors"] == []
@@ -169,7 +172,7 @@ class TestTemplateRegex:
         matches = TEMPLATE_RE.findall(text)
         # The regex already strips whitespace due to \s* in the pattern
         assert matches == ["base.name", "input.score"]
-        
+
         # Test that extract_placeholders works the same way
         placeholders = extract_placeholders(text)
-        assert placeholders == ["base.name", "input.score"] 
+        assert placeholders == ["base.name", "input.score"]

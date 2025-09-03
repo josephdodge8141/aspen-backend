@@ -1,0 +1,541 @@
+{
+	"info": {
+		"_postman_id": "workflows-api-collection",
+		"name": "Workflows API",
+		"description": "Complete API testing collection for Workflows endpoints including CRUD operations, DAG validation, planning, and available data queries.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "workflowId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "nodeId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "edgeId",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{authToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('authToken', response.access_token);",
+									"    console.log('Auth token set:', response.access_token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"alice.admin@example.com\",\n    \"password\": \"admin123\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/auth/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "auth", "login"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Workflows CRUD",
+			"item": [
+				{
+					"name": "List Workflows",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows"]
+						}
+					}
+				},
+				{
+					"name": "List Workflows by Team",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows?team_id=1",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows"],
+							"query": [
+								{
+									"key": "team_id",
+									"value": "1"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Workflow",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('workflowId', response.id);",
+									"    console.log('Workflow ID set:', response.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Test Workflow\",\n    \"description\": \"A test workflow for API validation\",\n    \"input_params\": {\n        \"user_query\": {\n            \"type\": \"string\",\n            \"description\": \"User's question\",\n            \"required\": true\n        },\n        \"context\": {\n            \"type\": \"object\",\n            \"description\": \"Additional context\"\n        }\n    },\n    \"is_api\": true,\n    \"cron_schedule\": null,\n    \"team_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows"]
+						}
+					}
+				},
+				{
+					"name": "Get Workflow Expanded",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}"]
+						}
+					}
+				},
+				{
+					"name": "Update Workflow",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"description\": \"Updated test workflow description\",\n    \"cron_schedule\": \"0 0 * * *\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}"]
+						}
+					}
+				},
+				{
+					"name": "Archive Workflow",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}:archive",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}:archive"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Nodes CRUD",
+			"item": [
+				{
+					"name": "Create Node",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('nodeId', response.id);",
+									"    console.log('Node ID set:', response.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"node_type\": \"job\",\n    \"node_metadata\": {\n        \"name\": \"Input Processing\",\n        \"description\": \"Process user input\",\n        \"config\": {\n            \"timeout\": 30,\n            \"retries\": 3\n        }\n    },\n    \"structured_output\": {\n        \"type\": \"object\",\n        \"properties\": {\n            \"processed_input\": {\"type\": \"string\"},\n            \"validation_status\": {\"type\": \"boolean\"}\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/nodes",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "nodes"]
+						}
+					}
+				},
+				{
+					"name": "Create Second Node",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"node_type\": \"guru\",\n    \"node_metadata\": {\n        \"name\": \"AI Response\",\n        \"description\": \"Generate AI response\",\n        \"expert_id\": 1,\n        \"config\": {\n            \"temperature\": 0.7,\n            \"max_tokens\": 500\n        }\n    },\n    \"structured_output\": {\n        \"type\": \"object\",\n        \"properties\": {\n            \"response\": {\"type\": \"string\"},\n            \"confidence\": {\"type\": \"number\"}\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/nodes",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "nodes"]
+						}
+					}
+				},
+				{
+					"name": "Update Node",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"node_metadata\": {\n        \"name\": \"Updated Input Processing\",\n        \"description\": \"Updated process user input with validation\",\n        \"config\": {\n            \"timeout\": 60,\n            \"retries\": 5\n        }\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/nodes/{{nodeId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "nodes", "{{nodeId}}"]
+						}
+					}
+				},
+				{
+					"name": "Delete Node",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/nodes/{{nodeId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "nodes", "{{nodeId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Edges CRUD",
+			"item": [
+				{
+					"name": "Create Edge",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('edgeId', response.id);",
+									"    console.log('Edge ID set:', response.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"parent_id\": 1,\n    \"child_id\": 2,\n    \"branch_label\": null\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/edges",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "edges"]
+						}
+					}
+				},
+				{
+					"name": "Create If-Else Edge (True)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"parent_id\": 3,\n    \"child_id\": 4,\n    \"branch_label\": \"true\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/edges",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "edges"]
+						}
+					}
+				},
+				{
+					"name": "Create If-Else Edge (False)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"parent_id\": 3,\n    \"child_id\": 5,\n    \"branch_label\": \"false\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/edges",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "edges"]
+						}
+					}
+				},
+				{
+					"name": "Delete Edge",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/edges/{{edgeId}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "edges", "{{edgeId}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "DAG Operations",
+			"item": [
+				{
+					"name": "Validate Workflow",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}:validate",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}:validate"]
+						}
+					}
+				},
+				{
+					"name": "Plan Workflow",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"starting_inputs\": {\n        \"user_query\": {\"type\": \"string\"},\n        \"context\": {\"type\": \"object\"},\n        \"priority\": {\"type\": \"string\"}\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}:plan",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}:plan"]
+						}
+					}
+				},
+				{
+					"name": "Get Available Data",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/available-data",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "available-data"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Error Cases",
+			"item": [
+				{
+					"name": "Create Invalid Workflow (Bad Cron)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Invalid Workflow\",\n    \"description\": \"Should fail due to invalid cron\",\n    \"input_params\": {},\n    \"is_api\": false,\n    \"cron_schedule\": \"invalid cron expression\",\n    \"team_id\": 1\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows"]
+						}
+					}
+				},
+				{
+					"name": "Create Self-Edge (Should Fail)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"parent_id\": 1,\n    \"child_id\": 1,\n    \"branch_label\": null\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/edges",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "edges"]
+						}
+					}
+				},
+				{
+					"name": "Create Duplicate Edge (Should Fail)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"parent_id\": 1,\n    \"child_id\": 2,\n    \"branch_label\": null\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/{{workflowId}}/edges",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "{{workflowId}}", "edges"]
+						}
+					}
+				},
+				{
+					"name": "Access Non-existent Workflow",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/workflows/99999",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "workflows", "99999"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": ["{{baseUrl}}"],
+							"path": ["health"]
+						}
+					}
+				}
+			]
+		}
+	]
+} 

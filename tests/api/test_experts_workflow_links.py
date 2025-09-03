@@ -59,7 +59,7 @@ def test_data(db_session: Session):
         model_name="gpt-4",
         input_params={"param1": "value1"},
         team_id=team.id,
-        status=ExpertStatus.active
+        status=ExpertStatus.active,
     )
     db_session.add(expert)
     db_session.commit()
@@ -100,29 +100,30 @@ class TestAddWorkflowLinks:
     def test_add_workflows_success(self, client, test_data, auth_headers):
         """Test successfully adding workflow links."""
         workflow_ids = [test_data["workflow1"].id, test_data["workflow2"].id]
-        
+
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/workflows",
             json={"workflow_ids": workflow_ids},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 200
 
         data = response.json()
         assert "workflows" in data
         assert len(data["workflows"]) == 2
-        
+
         # Check that workflows are in the response
         workflow_names = [w["name"] for w in data["workflows"]]
         assert "Test Workflow 1" in workflow_names
         assert "Test Workflow 2" in workflow_names
 
-    def test_add_workflows_duplicate_is_noop(self, client, test_data, auth_headers, db_session):
+    def test_add_workflows_duplicate_is_noop(
+        self, client, test_data, auth_headers, db_session
+    ):
         """Test that adding duplicate workflow links is a no-op."""
         # First, add a workflow link directly
         existing_link = ExpertWorkflow(
-            expert_id=test_data["expert"].id,
-            workflow_id=test_data["workflow1"].id
+            expert_id=test_data["expert"].id, workflow_id=test_data["workflow1"].id
         )
         db_session.add(existing_link)
         db_session.commit()
@@ -131,7 +132,7 @@ class TestAddWorkflowLinks:
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/workflows",
             json={"workflow_ids": [test_data["workflow1"].id]},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 200
 
@@ -144,7 +145,7 @@ class TestAddWorkflowLinks:
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/workflows",
             json={"workflow_ids": [99999]},  # Non-existent workflow
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 404
         assert "Workflow with id 99999 not found" in response.text
@@ -154,7 +155,7 @@ class TestAddWorkflowLinks:
         response = client.post(
             "/api/v1/experts/99999/workflows",
             json={"workflow_ids": [test_data["workflow1"].id]},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 404
         assert "Expert not found" in response.text
@@ -163,20 +164,25 @@ class TestAddWorkflowLinks:
         """Test that adding workflows requires authentication."""
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/workflows",
-            json={"workflow_ids": [test_data["workflow1"].id]}
+            json={"workflow_ids": [test_data["workflow1"].id]},
         )
         assert response.status_code == 401
 
     @patch("app.security.permissions.require_team_admin")
-    def test_add_workflows_requires_team_admin(self, mock_require_admin, client, test_data, auth_headers):
+    def test_add_workflows_requires_team_admin(
+        self, mock_require_admin, client, test_data, auth_headers
+    ):
         """Test that adding workflows requires team admin permissions."""
         from fastapi import HTTPException
-        mock_require_admin.side_effect = HTTPException(status_code=403, detail="forbidden")
+
+        mock_require_admin.side_effect = HTTPException(
+            status_code=403, detail="forbidden"
+        )
 
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/workflows",
             json={"workflow_ids": [test_data["workflow1"].id]},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 403
 
@@ -188,15 +194,14 @@ class TestRemoveWorkflowLinks:
         """Test successfully removing a workflow link."""
         # First, add a workflow link
         existing_link = ExpertWorkflow(
-            expert_id=test_data["expert"].id,
-            workflow_id=test_data["workflow1"].id
+            expert_id=test_data["expert"].id, workflow_id=test_data["workflow1"].id
         )
         db_session.add(existing_link)
         db_session.commit()
 
         response = client.delete(
             f"/api/v1/experts/{test_data['expert'].id}/workflows/{test_data['workflow1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 204
 
@@ -204,7 +209,7 @@ class TestRemoveWorkflowLinks:
         """Test removing a workflow that's not linked is idempotent (204)."""
         response = client.delete(
             f"/api/v1/experts/{test_data['expert'].id}/workflows/{test_data['workflow1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 204
 
@@ -212,7 +217,7 @@ class TestRemoveWorkflowLinks:
         """Test removing workflow from unknown expert returns 404."""
         response = client.delete(
             f"/api/v1/experts/99999/workflows/{test_data['workflow1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 404
         assert "Expert not found" in response.text
@@ -225,14 +230,19 @@ class TestRemoveWorkflowLinks:
         assert response.status_code == 401
 
     @patch("app.security.permissions.require_team_admin")
-    def test_remove_workflow_requires_team_admin(self, mock_require_admin, client, test_data, auth_headers):
+    def test_remove_workflow_requires_team_admin(
+        self, mock_require_admin, client, test_data, auth_headers
+    ):
         """Test that removing workflows requires team admin permissions."""
         from fastapi import HTTPException
-        mock_require_admin.side_effect = HTTPException(status_code=403, detail="forbidden")
+
+        mock_require_admin.side_effect = HTTPException(
+            status_code=403, detail="forbidden"
+        )
 
         response = client.delete(
             f"/api/v1/experts/{test_data['expert'].id}/workflows/{test_data['workflow1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 403
 
@@ -240,10 +250,14 @@ class TestRemoveWorkflowLinks:
 class TestWorkflowLinksIntegration:
     """Integration tests for workflow link management."""
 
-    def test_add_and_remove_workflow_updates_counts(self, client, test_data, auth_headers):
+    def test_add_and_remove_workflow_updates_counts(
+        self, client, test_data, auth_headers
+    ):
         """Test that adding and removing workflows updates the counts in expanded view."""
         # Initially no workflows
-        response = client.get(f"/api/v1/experts/{test_data['expert'].id}", headers=auth_headers)
+        response = client.get(
+            f"/api/v1/experts/{test_data['expert'].id}", headers=auth_headers
+        )
         assert response.status_code == 200
         assert len(response.json()["workflows"]) == 0
 
@@ -252,7 +266,7 @@ class TestWorkflowLinksIntegration:
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/workflows",
             json={"workflow_ids": workflow_ids},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 200
         assert len(response.json()["workflows"]) == 2
@@ -260,12 +274,14 @@ class TestWorkflowLinksIntegration:
         # Remove one workflow
         response = client.delete(
             f"/api/v1/experts/{test_data['expert'].id}/workflows/{test_data['workflow1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 204
 
         # Check updated count
-        response = client.get(f"/api/v1/experts/{test_data['expert'].id}", headers=auth_headers)
+        response = client.get(
+            f"/api/v1/experts/{test_data['expert'].id}", headers=auth_headers
+        )
         assert response.status_code == 200
         assert len(response.json()["workflows"]) == 1
-        assert response.json()["workflows"][0]["name"] == "Test Workflow 2" 
+        assert response.json()["workflows"][0]["name"] == "Test Workflow 2"

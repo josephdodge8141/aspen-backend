@@ -8,7 +8,9 @@ from app.models.services import Service
 from app.schemas.workflows import WorkflowListItem, WorkflowRead, NodeRead, EdgeRead
 
 
-def truncate_description(description: Optional[str], max_length: int = 120) -> Optional[str]:
+def truncate_description(
+    description: Optional[str], max_length: int = 120
+) -> Optional[str]:
     """Truncate description to max_length characters with ellipsis if needed."""
     if not description:
         return description
@@ -17,16 +19,18 @@ def truncate_description(description: Optional[str], max_length: int = 120) -> O
     return description[:max_length] + "..."
 
 
-def list_with_counts(session: Session, *, team_id: Optional[int] = None) -> List[WorkflowListItem]:
+def list_with_counts(
+    session: Session, *, team_id: Optional[int] = None
+) -> List[WorkflowListItem]:
     """List workflows with expert and service counts, plus first 5 expert names."""
-    
+
     # Build the base query with aggregates for counts
     experts_count_subquery = (
         select(func.count(ExpertWorkflow.expert_id))
         .where(ExpertWorkflow.workflow_id == Workflow.id)
         .scalar_subquery()
     )
-    
+
     services_count_subquery = (
         select(func.count(ExpertService.service_id.distinct()))
         .select_from(ExpertService)
@@ -34,23 +38,23 @@ def list_with_counts(session: Session, *, team_id: Optional[int] = None) -> List
         .where(ExpertWorkflow.workflow_id == Workflow.id)
         .scalar_subquery()
     )
-    
+
     statement = select(
         Workflow,
         experts_count_subquery.label("experts_count"),
         services_count_subquery.label("services_count"),
     )
-    
+
     # Apply team filter if provided
     if team_id is not None:
         statement = statement.where(Workflow.team_id == team_id)
-    
+
     # Order by name for stable results
     statement = statement.order_by(Workflow.name)
-    
+
     # Execute main query
     results = session.exec(statement).all()
-    
+
     # For each workflow, get the first 5 expert names
     list_items = []
     for workflow, experts_count, services_count in results:
@@ -63,9 +67,12 @@ def list_with_counts(session: Session, *, team_id: Optional[int] = None) -> List
             .limit(5)
         )
         expert_results = session.exec(experts_query).all()
-        
-        experts_list = [{"id": expert_id, "name": expert_name} for expert_id, expert_name in expert_results]
-        
+
+        experts_list = [
+            {"id": expert_id, "name": expert_name}
+            for expert_id, expert_name in expert_results
+        ]
+
         list_items.append(
             WorkflowListItem(
                 id=workflow.id,
@@ -77,22 +84,22 @@ def list_with_counts(session: Session, *, team_id: Optional[int] = None) -> List
                 services_count=services_count or 0,
             )
         )
-    
+
     return list_items
 
 
 def get_expanded(session: Session, workflow_id: int) -> Optional[Dict[str, Any]]:
     """Get workflow with expanded nodes, edges, experts, and services."""
-    
+
     # Get the workflow
     workflow = session.get(Workflow, workflow_id)
     if not workflow:
         return None
-    
+
     # Get nodes for this workflow
     nodes_query = select(Node).where(Node.workflow_id == workflow_id).order_by(Node.id)
     nodes = session.exec(nodes_query).all()
-    
+
     # Get edges for this workflow
     edges_query = (
         select(NodeNode)
@@ -101,7 +108,7 @@ def get_expanded(session: Session, workflow_id: int) -> Optional[Dict[str, Any]]
         .order_by(NodeNode.id)
     )
     edges = session.exec(edges_query).all()
-    
+
     # Get experts linked to this workflow
     experts_query = (
         select(Expert.id, Expert.name)
@@ -110,8 +117,11 @@ def get_expanded(session: Session, workflow_id: int) -> Optional[Dict[str, Any]]
         .order_by(Expert.name)
     )
     expert_results = session.exec(experts_query).all()
-    experts_list = [{"id": expert_id, "name": expert_name} for expert_id, expert_name in expert_results]
-    
+    experts_list = [
+        {"id": expert_id, "name": expert_name}
+        for expert_id, expert_name in expert_results
+    ]
+
     # Get services linked to this workflow (through experts)
     services_query = (
         select(Service.id, Service.name, Service.environment)
@@ -126,7 +136,7 @@ def get_expanded(session: Session, workflow_id: int) -> Optional[Dict[str, Any]]
         {"id": service_id, "name": service_name, "environment": environment.value}
         for service_id, service_name, environment in service_results
     ]
-    
+
     return {
         "workflow": WorkflowRead(
             id=workflow.id,

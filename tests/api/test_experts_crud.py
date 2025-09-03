@@ -69,14 +69,16 @@ def test_data(db_session: Session):
     db_session.add(workflow)
     db_session.commit()
     db_session.refresh(workflow)
-    
+
     # Link workflow to expert
     from app.models.experts import ExpertWorkflow
+
     expert_workflow = ExpertWorkflow(expert_id=expert.id, workflow_id=workflow.id)
     db_session.add(expert_workflow)
 
     # Create service
     import uuid
+
     service = Service(
         name=f"Test Service {uuid.uuid4().hex[:8]}",
         environment=Environment.dev,
@@ -86,9 +88,10 @@ def test_data(db_session: Session):
     db_session.add(service)
     db_session.commit()
     db_session.refresh(service)
-    
+
     # Link service to expert
     from app.models.experts import ExpertService
+
     expert_service = ExpertService(expert_id=expert.id, service_id=service.id)
     db_session.add(expert_service)
 
@@ -109,6 +112,7 @@ def test_data(db_session: Session):
 def auth_headers(test_data):
     """Create JWT auth headers for testing."""
     import os
+
     os.environ["JWT_SECRET"] = "test-secret-key"
     token = create_access_token(user_id=test_data["user"].id)
     return {"Authorization": f"Bearer {token}"}
@@ -124,14 +128,17 @@ class TestListExperts:
 
         data = response.json()
         assert len(data) >= 1  # Should contain at least our test expert
-        
+
         # Find our test expert in the results
         test_expert = None
         for expert in data:
-            if expert["name"] == "Test Expert" and expert["team_id"] == test_data["team"].id:
+            if (
+                expert["name"] == "Test Expert"
+                and expert["team_id"] == test_data["team"].id
+            ):
                 test_expert = expert
                 break
-        
+
         assert test_expert is not None, "Test expert not found in results"
         assert test_expert["workflows_count"] == 1
         assert test_expert["services_count"] == 1
@@ -154,14 +161,17 @@ class TestListExperts:
 
         data = response.json()
         assert len(data) >= 1  # Should contain at least our test expert
-        
+
         # Find our test expert in the results
         test_expert = None
         for expert in data:
-            if expert["name"] == "Test Expert" and expert["team_id"] == test_data["team"].id:
+            if (
+                expert["name"] == "Test Expert"
+                and expert["team_id"] == test_data["team"].id
+            ):
                 test_expert = expert
                 break
-        
+
         assert test_expert is not None, "Test expert not found in results"
         assert test_expert["status"] == "active"
 

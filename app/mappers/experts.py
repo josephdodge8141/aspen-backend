@@ -9,7 +9,9 @@ def truncate_prompt(prompt: str, max_length: int = 120) -> str:
     return prompt[:max_length] + "..."
 
 
-def to_list_item(expert: Expert, workflows_count: int, services_count: int) -> ExpertListItem:
+def to_list_item(
+    expert: Expert, workflows_count: int, services_count: int
+) -> ExpertListItem:
     """Convert Expert model to ExpertListItem DTO with truncated prompt."""
     return ExpertListItem(
         id=expert.id,
@@ -19,7 +21,7 @@ def to_list_item(expert: Expert, workflows_count: int, services_count: int) -> E
         model_name=expert.model_name,
         workflows_count=workflows_count,
         services_count=services_count,
-        team_id=expert.team_id
+        team_id=expert.team_id,
     )
 
 
@@ -33,5 +35,5 @@ def to_read(expert: Expert) -> ExpertRead:
         input_params=expert.input_params or {},  # Handle None case
         status=expert.status,
         model_name=expert.model_name,
-        team_id=expert.team_id
-    ) 
+        team_id=expert.team_id,
+    )

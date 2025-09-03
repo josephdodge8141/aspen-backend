@@ -59,7 +59,7 @@ def test_data(db_session: Session):
         model_name="gpt-4",
         input_params={"param1": "value1"},
         team_id=team.id,
-        status=ExpertStatus.active
+        status=ExpertStatus.active,
     )
     db_session.add(expert)
     db_session.commit()
@@ -67,23 +67,24 @@ def test_data(db_session: Session):
 
     # Create services
     import uuid
+
     service1 = Service(
         name=f"Test Service 1 {uuid.uuid4().hex[:8]}",
         environment=Environment.dev,
         api_key_hash="test_hash_1",
-        api_key_last4="1234"
+        api_key_last4="1234",
     )
     service2 = Service(
         name=f"Test Service 2 {uuid.uuid4().hex[:8]}",
         environment=Environment.stage,
         api_key_hash="test_hash_2",
-        api_key_last4="5678"
+        api_key_last4="5678",
     )
     service3 = Service(
         name=f"Test Service 3 {uuid.uuid4().hex[:8]}",
         environment=Environment.prod,
         api_key_hash="test_hash_3",
-        api_key_last4="9012"
+        api_key_last4="9012",
     )
     db_session.add_all([service1, service2, service3])
     db_session.commit()
@@ -116,29 +117,30 @@ class TestAddServiceLinks:
     def test_add_services_success(self, client, test_data, auth_headers):
         """Test successfully adding service links."""
         service_ids = [test_data["service1"].id, test_data["service2"].id]
-        
+
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/services",
             json={"service_ids": service_ids},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 200
 
         data = response.json()
         assert "services" in data
         assert len(data["services"]) == 2
-        
+
         # Check that services are in the response
         service_envs = [s["environment"] for s in data["services"]]
         assert "dev" in service_envs
         assert "stage" in service_envs
 
-    def test_add_services_duplicate_is_noop(self, client, test_data, auth_headers, db_session):
+    def test_add_services_duplicate_is_noop(
+        self, client, test_data, auth_headers, db_session
+    ):
         """Test that adding duplicate service links is a no-op."""
         # First, add a service link directly
         existing_link = ExpertService(
-            expert_id=test_data["expert"].id,
-            service_id=test_data["service1"].id
+            expert_id=test_data["expert"].id, service_id=test_data["service1"].id
         )
         db_session.add(existing_link)
         db_session.commit()
@@ -147,7 +149,7 @@ class TestAddServiceLinks:
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/services",
             json={"service_ids": [test_data["service1"].id]},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 200
 
@@ -160,7 +162,7 @@ class TestAddServiceLinks:
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/services",
             json={"service_ids": [99999]},  # Non-existent service
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 404
         assert "Service with id 99999 not found" in response.text
@@ -170,7 +172,7 @@ class TestAddServiceLinks:
         response = client.post(
             "/api/v1/experts/99999/services",
             json={"service_ids": [test_data["service1"].id]},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 404
         assert "Expert not found" in response.text
@@ -179,20 +181,25 @@ class TestAddServiceLinks:
         """Test that adding services requires authentication."""
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/services",
-            json={"service_ids": [test_data["service1"].id]}
+            json={"service_ids": [test_data["service1"].id]},
         )
         assert response.status_code == 401
 
     @patch("app.security.permissions.require_team_admin")
-    def test_add_services_requires_team_admin(self, mock_require_admin, client, test_data, auth_headers):
+    def test_add_services_requires_team_admin(
+        self, mock_require_admin, client, test_data, auth_headers
+    ):
         """Test that adding services requires team admin permissions."""
         from fastapi import HTTPException
-        mock_require_admin.side_effect = HTTPException(status_code=403, detail="forbidden")
+
+        mock_require_admin.side_effect = HTTPException(
+            status_code=403, detail="forbidden"
+        )
 
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/services",
             json={"service_ids": [test_data["service1"].id]},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 403
 
@@ -204,15 +211,14 @@ class TestRemoveServiceLinks:
         """Test successfully removing a service link."""
         # First, add a service link
         existing_link = ExpertService(
-            expert_id=test_data["expert"].id,
-            service_id=test_data["service1"].id
+            expert_id=test_data["expert"].id, service_id=test_data["service1"].id
         )
         db_session.add(existing_link)
         db_session.commit()
 
         response = client.delete(
             f"/api/v1/experts/{test_data['expert'].id}/services/{test_data['service1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 204
 
@@ -220,7 +226,7 @@ class TestRemoveServiceLinks:
         """Test removing a service that's not linked is idempotent (204)."""
         response = client.delete(
             f"/api/v1/experts/{test_data['expert'].id}/services/{test_data['service1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 204
 
@@ -228,7 +234,7 @@ class TestRemoveServiceLinks:
         """Test removing service from unknown expert returns 404."""
         response = client.delete(
             f"/api/v1/experts/99999/services/{test_data['service1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 404
         assert "Expert not found" in response.text
@@ -241,14 +247,19 @@ class TestRemoveServiceLinks:
         assert response.status_code == 401
 
     @patch("app.security.permissions.require_team_admin")
-    def test_remove_service_requires_team_admin(self, mock_require_admin, client, test_data, auth_headers):
+    def test_remove_service_requires_team_admin(
+        self, mock_require_admin, client, test_data, auth_headers
+    ):
         """Test that removing services requires team admin permissions."""
         from fastapi import HTTPException
-        mock_require_admin.side_effect = HTTPException(status_code=403, detail="forbidden")
+
+        mock_require_admin.side_effect = HTTPException(
+            status_code=403, detail="forbidden"
+        )
 
         response = client.delete(
             f"/api/v1/experts/{test_data['expert'].id}/services/{test_data['service1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 403
 
@@ -256,10 +267,14 @@ class TestRemoveServiceLinks:
 class TestServiceLinksIntegration:
     """Integration tests for service link management."""
 
-    def test_add_and_remove_service_updates_counts(self, client, test_data, auth_headers):
+    def test_add_and_remove_service_updates_counts(
+        self, client, test_data, auth_headers
+    ):
         """Test that adding and removing services updates the counts in expanded view."""
         # Initially no services
-        response = client.get(f"/api/v1/experts/{test_data['expert'].id}", headers=auth_headers)
+        response = client.get(
+            f"/api/v1/experts/{test_data['expert'].id}", headers=auth_headers
+        )
         assert response.status_code == 200
         assert len(response.json()["services"]) == 0
 
@@ -268,7 +283,7 @@ class TestServiceLinksIntegration:
         response = client.post(
             f"/api/v1/experts/{test_data['expert'].id}/services",
             json={"service_ids": service_ids},
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 200
         assert len(response.json()["services"]) == 2
@@ -276,12 +291,14 @@ class TestServiceLinksIntegration:
         # Remove one service
         response = client.delete(
             f"/api/v1/experts/{test_data['expert'].id}/services/{test_data['service1'].id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
         assert response.status_code == 204
 
         # Check updated count
-        response = client.get(f"/api/v1/experts/{test_data['expert'].id}", headers=auth_headers)
+        response = client.get(
+            f"/api/v1/experts/{test_data['expert'].id}", headers=auth_headers
+        )
         assert response.status_code == 200
         assert len(response.json()["services"]) == 1
-        assert response.json()["services"][0]["environment"] == "stage" 
+        assert response.json()["services"][0]["environment"] == "stage"

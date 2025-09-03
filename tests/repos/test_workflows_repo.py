@@ -8,7 +8,11 @@ from app.models.services import Service
 from app.models.team import Team, Member, TeamMember
 from app.models.users import User
 from app.models.common import TeamRole, ExpertStatus, Environment, NodeType
-from app.repos.workflows_repo import list_with_counts, get_expanded, truncate_description
+from app.repos.workflows_repo import (
+    list_with_counts,
+    get_expanded,
+    truncate_description,
+)
 
 
 class TestTruncateDescription:
@@ -62,7 +66,9 @@ class TestListWithCounts:
         db_session.refresh(team)
 
         # Create member and user
-        member = Member(email=f"user{test_uuid}@test.com", first_name="Test", last_name="User")
+        member = Member(
+            email=f"user{test_uuid}@test.com", first_name="Test", last_name="User"
+        )
         db_session.add(member)
         db_session.commit()
         db_session.refresh(member)
@@ -73,7 +79,9 @@ class TestListWithCounts:
         db_session.refresh(user)
 
         # Create team membership
-        team_member = TeamMember(team_id=team.id, member_id=member.id, role=TeamRole.admin)
+        team_member = TeamMember(
+            team_id=team.id, member_id=member.id, role=TeamRole.admin
+        )
         db_session.add(team_member)
 
         # Create workflows
@@ -82,21 +90,21 @@ class TestListWithCounts:
             description="A" * 150,  # Long description for truncation test
             team_id=team.id,
             is_api=True,
-            input_params={"param1": "value1"}
+            input_params={"param1": "value1"},
         )
         workflow2 = Workflow(
             name="Beta Workflow",
             description="Short description",
             team_id=team.id,
             is_api=False,
-            input_params={}
+            input_params={},
         )
         workflow3 = Workflow(
             name="Gamma Workflow",
             description=None,
             team_id=team.id,
             is_api=True,
-            input_params={}
+            input_params={},
         )
         db_session.add_all([workflow1, workflow2, workflow3])
         db_session.commit()
@@ -113,11 +121,11 @@ class TestListWithCounts:
                 model_name="gpt-4",
                 team_id=team.id,
                 status=ExpertStatus.active,
-                input_params={}
+                input_params={},
             )
             experts.append(expert)
             db_session.add(expert)
-        
+
         db_session.commit()
         for expert in experts:
             db_session.refresh(expert)
@@ -129,29 +137,35 @@ class TestListWithCounts:
                 name=f"Service {env.value} {test_uuid}",
                 environment=env,
                 api_key_hash=f"hash_{env.value}_{test_uuid}",
-                api_key_last4="1234"
+                api_key_last4="1234",
             )
             services.append(service)
             db_session.add(service)
-        
+
         db_session.commit()
         for service in services:
             db_session.refresh(service)
 
         # Link experts to workflow1 (first 5 experts)
         for i in range(5):
-            expert_workflow = ExpertWorkflow(expert_id=experts[i].id, workflow_id=workflow1.id)
+            expert_workflow = ExpertWorkflow(
+                expert_id=experts[i].id, workflow_id=workflow1.id
+            )
             db_session.add(expert_workflow)
 
         # Link experts to workflow2 (2 experts)
         for i in range(2):
-            expert_workflow = ExpertWorkflow(expert_id=experts[i].id, workflow_id=workflow2.id)
+            expert_workflow = ExpertWorkflow(
+                expert_id=experts[i].id, workflow_id=workflow2.id
+            )
             db_session.add(expert_workflow)
 
         # Link services to experts (which links them to workflows)
         for i in range(3):  # First 3 experts get services
             for service in services:
-                expert_service = ExpertService(expert_id=experts[i].id, service_id=service.id)
+                expert_service = ExpertService(
+                    expert_id=experts[i].id, service_id=service.id
+                )
                 db_session.add(expert_service)
 
         db_session.commit()
@@ -160,32 +174,32 @@ class TestListWithCounts:
             "team": team,
             "workflows": [workflow1, workflow2, workflow3],
             "experts": experts,
-            "services": services
+            "services": services,
         }
 
     def test_list_no_filters(self, db_session: Session, test_data):
         """Test listing all workflows without filters."""
         result = list_with_counts(db_session)
-        
+
         assert len(result) >= 3  # At least our test workflows
-        
+
         # Find our test workflows (sorted by name)
         alpha_workflow = next(w for w in result if w.name == "Alpha Workflow")
         beta_workflow = next(w for w in result if w.name == "Beta Workflow")
         gamma_workflow = next(w for w in result if w.name == "Gamma Workflow")
-        
+
         # Check Alpha Workflow (5 experts, 2 services through 3 experts)
         assert alpha_workflow.experts_count == 5
         assert alpha_workflow.services_count == 2
         assert len(alpha_workflow.experts) == 5  # First 5 experts
         assert alpha_workflow.description_truncated == "A" * 120 + "..."
-        
+
         # Check Beta Workflow (2 experts, 2 services through 2 experts)
         assert beta_workflow.experts_count == 2
         assert beta_workflow.services_count == 2
         assert len(beta_workflow.experts) == 2
         assert beta_workflow.description_truncated == "Short description"
-        
+
         # Check Gamma Workflow (0 experts, 0 services)
         assert gamma_workflow.experts_count == 0
         assert gamma_workflow.services_count == 0
@@ -195,7 +209,7 @@ class TestListWithCounts:
     def test_list_with_team_filter(self, db_session: Session, test_data):
         """Test listing workflows filtered by team."""
         result = list_with_counts(db_session, team_id=test_data["team"].id)
-        
+
         # Should return exactly our 3 test workflows
         workflow_names = [w.name for w in result]
         assert "Alpha Workflow" in workflow_names
@@ -206,25 +220,29 @@ class TestListWithCounts:
         """Test that list ordering is stable (by name)."""
         result1 = list_with_counts(db_session, team_id=test_data["team"].id)
         result2 = list_with_counts(db_session, team_id=test_data["team"].id)
-        
+
         # Should return workflows in same order (alphabetical by name)
         names1 = [w.name for w in result1]
         names2 = [w.name for w in result2]
         assert names1 == names2
-        
+
         # Check alphabetical ordering for our test workflows
         test_workflow_names = [w.name for w in result1 if w.name.endswith(" Workflow")]
-        assert test_workflow_names == ["Alpha Workflow", "Beta Workflow", "Gamma Workflow"]
+        assert test_workflow_names == [
+            "Alpha Workflow",
+            "Beta Workflow",
+            "Gamma Workflow",
+        ]
 
     def test_experts_limit_five(self, db_session: Session, test_data):
         """Test that experts list is limited to first 5."""
         result = list_with_counts(db_session, team_id=test_data["team"].id)
         alpha_workflow = next(w for w in result if w.name == "Alpha Workflow")
-        
+
         # Should have exactly 5 experts in the list
         assert len(alpha_workflow.experts) == 5
         assert alpha_workflow.experts_count == 5
-        
+
         # Check expert structure
         for expert in alpha_workflow.experts:
             assert "id" in expert
@@ -251,7 +269,7 @@ class TestGetExpanded:
             team_id=team.id,
             is_api=True,
             input_params={"input1": "test"},
-            cron_schedule="0 0 * * *"
+            cron_schedule="0 0 * * *",
         )
         db_session.add(workflow)
         db_session.commit()
@@ -262,19 +280,28 @@ class TestGetExpanded:
             workflow_id=workflow.id,
             node_type=NodeType.job,
             node_metadata={"name": "Input Node", "config": {}},
-            structured_output={"type": "object", "properties": {"result": {"type": "string"}}}
+            structured_output={
+                "type": "object",
+                "properties": {"result": {"type": "string"}},
+            },
         )
         node2 = Node(
             workflow_id=workflow.id,
             node_type=NodeType.guru,
             node_metadata={"name": "Process Node", "expert_id": 1},
-            structured_output={"type": "object", "properties": {"output": {"type": "string"}}}
+            structured_output={
+                "type": "object",
+                "properties": {"output": {"type": "string"}},
+            },
         )
         node3 = Node(
             workflow_id=workflow.id,
             node_type=NodeType.return_,
             node_metadata={"name": "Output Node"},
-            structured_output={"type": "object", "properties": {"final": {"type": "string"}}}
+            structured_output={
+                "type": "object",
+                "properties": {"final": {"type": "string"}},
+            },
         )
         db_session.add_all([node1, node2, node3])
         db_session.commit()
@@ -297,7 +324,7 @@ class TestGetExpanded:
             model_name="gpt-4",
             team_id=team.id,
             status=ExpertStatus.active,
-            input_params={}
+            input_params={},
         )
         db_session.add(expert)
         db_session.commit()
@@ -311,7 +338,7 @@ class TestGetExpanded:
             name=f"Test Service {test_uuid}",
             environment=Environment.prod,
             api_key_hash=f"test_hash_{test_uuid}",
-            api_key_last4="1234"
+            api_key_last4="1234",
         )
         db_session.add(service)
         db_session.commit()
@@ -326,14 +353,14 @@ class TestGetExpanded:
             "nodes": [node1, node2, node3],
             "edges": [edge1, edge2],
             "expert": expert,
-            "service": service
+            "service": service,
         }
 
     def test_get_expanded_success(self, db_session: Session, test_workflow_data):
         """Test successful expanded workflow retrieval."""
         workflow_id = test_workflow_data["workflow"].id
         result = get_expanded(db_session, workflow_id)
-        
+
         assert result is not None
         assert "workflow" in result
         assert "nodes" in result
@@ -359,7 +386,9 @@ class TestGetExpanded:
 
         # Check edges
         assert len(result["edges"]) == 2
-        edge_with_label = next(edge for edge in result["edges"] if edge.branch_label is not None)
+        edge_with_label = next(
+            edge for edge in result["edges"] if edge.branch_label is not None
+        )
         assert edge_with_label.branch_label == "success"
 
         # Check experts
@@ -386,20 +415,17 @@ class TestGetExpanded:
         db_session.refresh(team)
 
         workflow = Workflow(
-            name="Empty Workflow",
-            team_id=team.id,
-            is_api=False,
-            input_params={}
+            name="Empty Workflow", team_id=team.id, is_api=False, input_params={}
         )
         db_session.add(workflow)
         db_session.commit()
         db_session.refresh(workflow)
 
         result = get_expanded(db_session, workflow.id)
-        
+
         assert result is not None
         assert result["workflow"].name == "Empty Workflow"
         assert len(result["nodes"]) == 0
         assert len(result["edges"]) == 0
         assert len(result["experts"]) == 0
-        assert len(result["services"]) == 0 
+        assert len(result["services"]) == 0
