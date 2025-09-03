@@ -21,6 +21,7 @@ passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 bcrypt = "^4.2.0"
 jsonata-python = "^0.6.0"
 croniter = "^2.0.0"
+jsonschema = "^4.23.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"

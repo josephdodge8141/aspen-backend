@@ -22,6 +22,8 @@ from app.lib.cron import is_valid_cron
 from app.services.dag_validate import validate_dag, validate_workflow_triggers
 from app.services.dag_plan import plan_workflow
 from app.services.dag_available import available_data_map
+from app.services.nodes.base import get_service, NodeValidationError
+import app.services.nodes  # Import to trigger service registration
 
 router = APIRouter(prefix="/api/v1/workflows", tags=["Workflows"])
 
@@ -176,7 +178,14 @@ async def create_node(
     # Check team admin permission
     require_team_admin(current_user, workflow.team_id)
 
-    # TODO: Call node service validate() (stubbed in E5) to validate metadata and structured_output
+    # Validate node metadata and structured output
+    try:
+        service = get_service(node_data.node_type)
+        service.validate(node_data.node_metadata, node_data.structured_output)
+    except NodeValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Node service error: {str(e)}")
 
     # Create node
     node = Node(
@@ -220,12 +229,19 @@ async def update_node(
     if not node or node.workflow_id != workflow_id:
         raise HTTPException(status_code=404, detail="Node not found")
 
-    # TODO: Call node service validate() (stubbed in E5) to validate metadata and structured_output
-
-    # Update fields
+    # Update fields first to get the complete metadata for validation
     update_data = node_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(node, field, value)
+
+    # Validate the updated node metadata and structured output
+    try:
+        service = get_service(node.node_type)
+        service.validate(node.node_metadata, node.structured_output)
+    except NodeValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=f"Node service error: {str(e)}")
 
     session.add(node)
     session.commit()
