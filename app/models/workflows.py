@@ -38,3 +38,4 @@ class NodeNode(TimestampMixin, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     parent_id: int = Field(foreign_key="nodes.id", nullable=False)
     child_id: int = Field(foreign_key="nodes.id", nullable=False)
+    branch_label: Optional[str] = Field(nullable=True)

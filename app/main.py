@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.api.auth import router as auth_router
 from app.api.experts import router as experts_router
+from app.api.workflows import router as workflows_router
 from app.middleware.ratelimit import RateLimitMiddleware
 
 app = FastAPI(
@@ -73,6 +74,7 @@ if os.getenv("ENABLE_RATELIMIT", "false").lower() == "true":
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(experts_router)
+app.include_router(workflows_router)
 
 
 @app.get("/")
