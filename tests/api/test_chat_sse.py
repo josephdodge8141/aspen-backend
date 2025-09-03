@@ -11,7 +11,13 @@ from app.services.runs import logger
 @pytest.mark.integration
 class TestChatSSE:
     def setup_method(self):
+        # Clear the registry to avoid test interference
+        REGISTRY.runs.clear()
         self.client = TestClient(app)
+    
+    def teardown_method(self):
+        # Clean up registry after each test
+        REGISTRY.runs.clear()
 
     def test_stream_run_events_with_backlog_and_new_events(self):
         """Test SSE endpoint with existing events and new ones."""

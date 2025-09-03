@@ -58,6 +58,7 @@ async def stream_run_events(run_id: str):
             return
 
         # Send backlog events
+        backlog_count = len(run_state.events)
         for event in run_state.events:
             yield {
                 "event": "log",
@@ -70,6 +71,13 @@ async def stream_run_events(run_id: str):
                     }
                 ),
             }
+
+        # Clear the queue of events that were already in backlog to avoid duplication
+        for _ in range(backlog_count):
+            try:
+                run_state.q.get_nowait()
+            except:
+                break
 
         # Stream new events until run is finished
         while True:
