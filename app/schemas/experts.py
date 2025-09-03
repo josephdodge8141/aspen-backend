@@ -39,7 +39,7 @@ class ExpertListItem(SQLModel):
     name: str
     model_name: str
     status: ExpertStatus
-    prompt_truncated: str
+    prompt: str
     workflows_count: int
     services_count: int
     team_id: int

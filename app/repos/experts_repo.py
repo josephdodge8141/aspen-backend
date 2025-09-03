@@ -261,18 +261,13 @@ def list_with_counts(
 
     list_items = []
     for expert, workflows_count, services_count in results:
-        # Truncate prompt to 120 chars with ellipsis
-        prompt_truncated = expert.prompt
-        if len(prompt_truncated) > 120:
-            prompt_truncated = prompt_truncated[:120] + "…"
-
         list_items.append(
             ExpertListItem(
                 id=expert.id,
                 name=expert.name,
                 model_name=expert.model_name,
                 status=expert.status,
-                prompt_truncated=prompt_truncated,
+                prompt=expert.prompt,
                 workflows_count=workflows_count or 0,
                 services_count=services_count or 0,
                 team_id=expert.team_id,

@@ -238,7 +238,7 @@ class TestCreateExpert:
         response = client.post("/api/v1/experts", json=expert_data)
         assert response.status_code == 401
 
-    @patch("app.security.permissions.require_team_admin")
+    @patch("app.api.experts.require_team_admin")
     def test_create_expert_requires_team_admin(
         self, mock_require_admin, client, test_data, auth_headers
     ):
@@ -327,7 +327,8 @@ class TestUpdateExpert:
             headers=auth_headers,
         )
         assert response.status_code == 422
-        assert "input_params must be a JSON object" in response.text
+        # Pydantic v2 error message for dict type validation
+        assert "dict_type" in response.text or "Input should be a valid dictionary" in response.text
 
     def test_update_expert_not_found(self, client, test_data, auth_headers):
         """Test updating non-existent expert."""
@@ -347,7 +348,7 @@ class TestUpdateExpert:
         )
         assert response.status_code == 401
 
-    @patch("app.security.permissions.require_team_admin")
+    @patch("app.api.experts.require_team_admin")
     def test_update_expert_requires_team_admin(
         self, mock_require_admin, client, test_data, auth_headers
     ):
@@ -410,7 +411,7 @@ class TestArchiveExpert:
         response = client.post(f"/api/v1/experts/{test_data['expert'].id}:archive")
         assert response.status_code == 401
 
-    @patch("app.security.permissions.require_team_admin")
+    @patch("app.api.experts.require_team_admin")
     def test_archive_expert_requires_team_admin(
         self, mock_require_admin, client, test_data, auth_headers
     ):
@@ -433,7 +434,7 @@ class TestExpertsPermissions:
 
     def test_problem_json_content_type_on_403(self, client, test_data, auth_headers):
         """Test that 403 errors return Problem+JSON content type."""
-        with patch("app.security.permissions.require_team_admin") as mock_require_admin:
+        with patch("app.api.experts.require_team_admin") as mock_require_admin:
             # Make require_team_admin raise a 403 error
             from fastapi import HTTPException
 

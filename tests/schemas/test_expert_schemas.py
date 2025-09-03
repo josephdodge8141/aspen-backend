@@ -94,7 +94,7 @@ def test_expert_list_item_has_counts():
         "name": "Test Expert",
         "model_name": "gpt-4",
         "status": ExpertStatus.active,
-        "prompt_truncated": "You are a helpful...",
+        "prompt": "You are a helpful...",
         "workflows_count": 3,
         "services_count": 2,
         "team_id": 123,
@@ -102,7 +102,7 @@ def test_expert_list_item_has_counts():
     expert = ExpertListItem(**data)
     assert expert.workflows_count == 3
     assert expert.services_count == 2
-    assert expert.prompt_truncated == "You are a helpful..."
+    assert expert.prompt == "You are a helpful..."
 
 
 def test_input_params_validation():

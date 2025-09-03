@@ -1,48 +1,8 @@
 import pytest
-from app.mappers.experts import to_list_item, to_read, truncate_prompt
+from app.mappers.experts import to_list_item, to_read
 from app.models.experts import Expert, ExpertStatus
 from app.schemas.experts import ExpertListItem, ExpertRead
 
-
-class TestTruncatePrompt:
-    def test_truncate_prompt_short_text(self):
-        """Test truncation with text shorter than max length."""
-        prompt = "Short prompt"
-        result = truncate_prompt(prompt, 120)
-        assert result == "Short prompt"
-
-    def test_truncate_prompt_exact_length(self):
-        """Test truncation with text exactly at max length."""
-        prompt = "A" * 120
-        result = truncate_prompt(prompt, 120)
-        assert result == "A" * 120
-        assert len(result) == 120
-
-    def test_truncate_prompt_long_text(self):
-        """Test truncation with text longer than max length."""
-        prompt = "A" * 150
-        result = truncate_prompt(prompt, 120)
-        assert result == "A" * 120 + "..."
-        assert len(result) == 123  # 120 + 3 for "..."
-
-    def test_truncate_prompt_custom_length(self):
-        """Test truncation with custom max length."""
-        prompt = "This is a longer prompt that should be truncated"
-        result = truncate_prompt(prompt, 20)
-        assert result == "This is a longer pro..."
-        assert len(result) == 23  # 20 + 3 for "..."
-
-    def test_truncate_prompt_empty_string(self):
-        """Test truncation with empty string."""
-        result = truncate_prompt("", 120)
-        assert result == ""
-
-    def test_truncate_prompt_default_length(self):
-        """Test truncation uses default length of 120."""
-        prompt = "A" * 150
-        result = truncate_prompt(prompt)  # No max_length specified
-        assert result == "A" * 120 + "..."
-        assert len(result) == 123
 
 
 class TestToListItem:
@@ -67,22 +27,13 @@ class TestToListItem:
         assert isinstance(result, ExpertListItem)
         assert result.id == 1
         assert result.name == "Test Expert"
-        assert result.prompt_truncated == "This is a test prompt for the expert"
+        assert result.prompt == "This is a test prompt for the expert"
         assert result.status == ExpertStatus.active
         assert result.model_name == "gpt-4"
         assert result.workflows_count == 2
         assert result.services_count == 3
         assert result.team_id == 10
 
-    def test_to_list_item_prompt_truncation(self, sample_expert):
-        """Test prompt truncation in list item."""
-        long_prompt = "A" * 150
-        sample_expert.prompt = long_prompt
-
-        result = to_list_item(sample_expert, workflows_count=1, services_count=1)
-
-        assert result.prompt_truncated == "A" * 120 + "..."
-        assert len(result.prompt_truncated) == 123
 
     def test_to_list_item_zero_counts(self, sample_expert):
         """Test list item with zero workflow and service counts."""
@@ -99,14 +50,7 @@ class TestToListItem:
 
         assert result.status == ExpertStatus.archive
 
-    def test_to_list_item_prompt_exactly_120_chars(self, sample_expert):
-        """Test list item with prompt exactly 120 characters."""
-        sample_expert.prompt = "A" * 120
 
-        result = to_list_item(sample_expert, workflows_count=1, services_count=1)
-
-        assert result.prompt_truncated == "A" * 120
-        assert len(result.prompt_truncated) == 120
 
 
 class TestToRead:
@@ -207,17 +151,7 @@ class TestMapperIntegration:
             team_id=10,
         )
 
-    def test_list_vs_read_prompt_handling(self, sample_expert):
-        """Test that list item truncates prompt while read preserves it."""
-        list_item = to_list_item(sample_expert, workflows_count=1, services_count=1)
-        read_item = to_read(sample_expert)
 
-        # List item should have truncated prompt
-        assert len(list_item.prompt_truncated) <= 123  # 120 + "..." if truncated
-
-        # Read item should have full prompt
-        assert read_item.prompt == sample_expert.prompt
-        assert len(read_item.prompt) > 120
 
     def test_consistent_basic_fields(self, sample_expert):
         """Test that basic fields are consistent between list and read DTOs."""

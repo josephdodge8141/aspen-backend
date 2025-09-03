@@ -239,27 +239,6 @@ def test_list_with_counts_combined_filters(
     assert seed_data["experts"][0].name in combined_names  # expert1
 
 
-def test_list_with_counts_prompt_truncation(
-    db_session: Session, experts_repo: ExpertsRepo, seed_data
-):
-    """Test that long prompts are truncated at 120 characters"""
-    results = experts_repo.list_with_counts(db_session)
-
-    # Find expert1 with long prompt
-    expert1_result = next(r for r in results if r.name == seed_data["experts"][0].name)
-
-    # Check truncation
-    assert len(expert1_result.prompt_truncated) == 121  # 120 chars + ellipsis
-    assert expert1_result.prompt_truncated.endswith("…")
-    assert expert1_result.prompt_truncated.startswith("You are a helpful assistant")
-
-    # Find expert2 with short prompt
-    expert2_result = next(r for r in results if r.name == seed_data["experts"][1].name)
-
-    # Short prompt should not be truncated
-    assert expert2_result.prompt_truncated == "Short prompt"
-    assert not expert2_result.prompt_truncated.endswith("…")
-
 
 def test_list_with_counts_returns_expert_list_items(
     db_session: Session, experts_repo: ExpertsRepo, seed_data
@@ -273,7 +252,7 @@ def test_list_with_counts_returns_expert_list_items(
         assert hasattr(result, "name")
         assert hasattr(result, "model_name")
         assert hasattr(result, "status")
-        assert hasattr(result, "prompt_truncated")
+        assert hasattr(result, "prompt")
         assert hasattr(result, "workflows_count")
         assert hasattr(result, "services_count")
         assert hasattr(result, "team_id")

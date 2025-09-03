@@ -185,7 +185,7 @@ class TestAddServiceLinks:
         )
         assert response.status_code == 401
 
-    @patch("app.security.permissions.require_team_admin")
+    @patch("app.api.experts.require_team_admin")
     def test_add_services_requires_team_admin(
         self, mock_require_admin, client, test_data, auth_headers
     ):
@@ -246,7 +246,7 @@ class TestRemoveServiceLinks:
         )
         assert response.status_code == 401
 
-    @patch("app.security.permissions.require_team_admin")
+    @patch("app.api.experts.require_team_admin")
     def test_remove_service_requires_team_admin(
         self, mock_require_admin, client, test_data, auth_headers
     ):

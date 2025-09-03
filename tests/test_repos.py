@@ -4,9 +4,9 @@ import hashlib
 import json
 from sqlmodel import Session
 from app.database import engine
-from app.repos import ExpertsRepo, WorkflowsRepo, ServicesRepo, UsersRepo, TeamsRepo
+from app.repos import ExpertsRepo, ServicesRepo, UsersRepo, TeamsRepo
 from app.models.experts import Expert
-from app.models.workflows import Workflow, Node
+# Workflow models are tested in tests/repos/test_workflows_repo.py
 from app.models.services import Service
 from app.models.users import User, ServiceUser
 from app.models.team import Team, Member
@@ -64,48 +64,7 @@ def test_experts_repo_round_trip(db_session):
     assert any(e.id == created_expert.id for e in experts_list)
 
 
-def test_workflows_repo_round_trip(db_session):
-    workflows_repo = WorkflowsRepo()
-    teams_repo = TeamsRepo()
-
-    # Create a team first
-    team = Team(name=f"Workflow Test Team {uuid.uuid4()}")
-    created_team = teams_repo.create(db_session, team)
-
-    # Test workflow creation and retrieval
-    workflow = Workflow(
-        name="Test Workflow",
-        description="A test workflow",
-        input_params={"param1": "value1"},
-        is_api=True,
-        team_id=created_team.id,
-    )
-
-    created_workflow = workflows_repo.create(db_session, workflow)
-    assert created_workflow.id is not None
-    assert created_workflow.uuid is not None
-
-    # Test retrieval by ID
-    retrieved_workflow = workflows_repo.get(db_session, created_workflow.id)
-    assert retrieved_workflow is not None
-    assert retrieved_workflow.name == "Test Workflow"
-    assert retrieved_workflow.is_api is True
-
-    # Test node creation
-    node = Node(
-        workflow_id=created_workflow.id,
-        node_type=NodeType.job,
-        node_metadata={"config": "test"},
-    )
-
-    created_node = workflows_repo.create_node(db_session, node)
-    assert created_node.id is not None
-    assert created_node.workflow_id == created_workflow.id
-
-    # Test list nodes
-    nodes = workflows_repo.list_nodes(db_session, created_workflow.id)
-    assert len(nodes) >= 1
-    assert any(n.id == created_node.id for n in nodes)
+# Workflow tests have been moved to tests/repos/test_workflows_repo.py
 
 
 def test_services_repo_round_trip(db_session):
