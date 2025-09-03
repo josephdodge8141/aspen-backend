@@ -6,6 +6,7 @@ from app.services.nodes.base_validators import (
     validate_no_unknown_fields,
 )
 from app.services.nodes.models import MetaEmbed
+from app.services.openai_client import get_openai_service
 
 
 class EmbedService(NodeService):
@@ -35,4 +36,27 @@ class EmbedService(NodeService):
     def execute(
         self, inputs: Dict[str, Any], metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
-        return {"embedded": True, "count": 1}
+        input_text = inputs.get("input", "")
+        model_name = metadata.get("model_name", "text-embedding-3-small")
+        
+        if not input_text:
+            return {"embedding": [], "error": "No input text provided"}
+        
+        try:
+            response = get_openai_service().client.embeddings.create(
+                model=model_name,
+                input=input_text
+            )
+            embedding = response.data[0].embedding
+            
+            return {
+                "embedding": embedding,
+                "dimensions": len(embedding),
+                "model": model_name,
+                "input_length": len(input_text)
+            }
+        except Exception as e:
+            return {
+                "embedding": [],
+                "error": f"Failed to create embedding: {str(e)}"
+            }

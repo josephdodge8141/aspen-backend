@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from app.main import app
 from app.models.experts import Expert, ExpertStatus
@@ -104,8 +104,14 @@ def service_headers():
 
 
 class TestRunExpert:
-    def test_run_expert_success_with_user(self, client, test_data, auth_headers):
+    @patch("app.services.openai_client.get_openai_service")
+    def test_run_expert_success_with_user(self, mock_openai_service, client, test_data, auth_headers):
         """Test successful expert run with user authentication."""
+        # Mock OpenAI response
+        mock_openai = MagicMock()
+        mock_openai.chat_completion.return_value = "This is a test response from GPT-4"
+        mock_openai_service.return_value = mock_openai
+        
         request_data = {
             "expert_id": test_data["expert"].id,
             "input_params": {"name": "Alice"},
@@ -129,17 +135,27 @@ class TestRunExpert:
         assert "Hello Alice" in user_message["content"]
         assert "today is" in user_message["content"]
 
-        # Check assistant message (stubbed)
+        # Check assistant message (OpenAI response)
         assistant_message = data["messages"][1]
         assert assistant_message["role"] == "assistant"
-        assert "stubbed response from gpt-4" in assistant_message["content"]
+        assert assistant_message["content"] == "This is a test response from GPT-4"
+        
+        # Verify OpenAI was called with correct parameters
+        mock_openai.chat_completion.assert_called_once()
+        call_args = mock_openai.chat_completion.call_args
+        assert call_args[1]["model"] == "gpt-4"
+        assert call_args[1]["temperature"] == 0.7
 
     @patch("app.security.apikeys.hash_api_key")
+    @patch("app.services.openai_client.get_openai_service")
     def test_run_expert_success_with_service(
-        self, mock_hash, client, test_data, service_headers
+        self, mock_openai_service, mock_hash, client, test_data, service_headers
     ):
         """Test successful expert run with service authentication."""
         mock_hash.return_value = "test_hash"
+        mock_openai = MagicMock()
+        mock_openai.chat_completion.return_value = "Service test response"
+        mock_openai_service.return_value = mock_openai
 
         request_data = {
             "expert_id": test_data["expert"].id,
@@ -156,6 +172,7 @@ class TestRunExpert:
         assert "run_id" in data
         assert "messages" in data
         assert "Hello Bob" in data["messages"][0]["content"]
+        assert data["messages"][1]["content"] == "Service test response"
 
     def test_run_expert_not_found(self, client, auth_headers):
         """Test expert not found error."""

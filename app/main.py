@@ -5,6 +5,7 @@ from app.api.auth import router as auth_router
 from app.api.experts import router as experts_router
 from app.api.workflows import router as workflows_router
 from app.api.chat import router as chat_router
+from app.api.services import router as services_router
 from app.middleware.ratelimit import RateLimitMiddleware
 
 # Initialize run registry (starts GC thread)
@@ -84,6 +85,7 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(experts_router)
 app.include_router(workflows_router)
 app.include_router(chat_router)
+app.include_router(services_router)
 
 
 @app.get("/")

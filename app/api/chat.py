@@ -20,6 +20,7 @@ from app.repos.workflows_repo import get_nodes_and_edges
 from app.services.runs.registry import REGISTRY
 from app.services.runs import logger
 from app.services.prompt_render import render_prompt, get_base_defaults
+from app.services.openai_client import get_openai_service
 
 
 router = APIRouter(prefix="/api/v1/chat", tags=["Chat"])
@@ -126,7 +127,7 @@ def run_expert(
     caller: CallerContext = Depends(get_caller),
     session: Session = Depends(get_db_session),
 ):
-    """Run an expert with input parameters and return stubbed response."""
+    """Run an expert with input parameters and return OpenAI response."""
 
     # Fetch the expert
     expert = session.get(Expert, body.expert_id)
@@ -188,22 +189,41 @@ def run_expert(
             for warning in warnings:
                 logger.log_warn(run_id, "Prompt rendering warning", warning=warning)
 
-        # Create messages (user prompt + stubbed assistant response)
+        # Call OpenAI for real response
+        logger.log_info(run_id, "Calling OpenAI API", model_name=expert.model_name)
+        
+        try:
+            assistant_response = get_openai_service().chat_completion(
+                messages=[{"role": "user", "content": rendered_prompt}],
+                model=expert.model_name,
+                temperature=expert.input_params.get("temperature", 0.7),
+                max_tokens=expert.input_params.get("max_tokens"),
+                **{k: v for k, v in expert.input_params.items() 
+                   if k not in ["temperature", "max_tokens"]}
+            )
+            
+            logger.log_info(
+                run_id,
+                "OpenAI response received",
+                model_name=expert.model_name,
+                response_length=len(assistant_response),
+            )
+            
+        except Exception as e:
+            logger.log_error(
+                run_id,
+                "OpenAI API call failed",
+                exception=e,
+                model_name=expert.model_name,
+            )
+            # Fall back to error message
+            assistant_response = f"Error calling {expert.model_name}: {str(e)}"
+
+        # Create messages (user prompt + real assistant response)
         messages = [
             {"role": "user", "content": rendered_prompt},
-            {
-                "role": "assistant",
-                "content": f"(stubbed response from {expert.model_name})",
-            },
+            {"role": "assistant", "content": assistant_response},
         ]
-
-        # Log assistant response
-        logger.log_info(
-            run_id,
-            "Assistant stub sent",
-            model_name=expert.model_name,
-            response_type="stubbed",
-        )
 
         # Finish the run
         logger.finish(run_id)

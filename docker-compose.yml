@@ -19,6 +19,8 @@ services:
     build: .
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     environment:
       DATABASE_URL: postgresql://aspen_user:aspen_pass@db:5432/aspen_dev
     depends_on:
