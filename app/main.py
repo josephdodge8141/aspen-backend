@@ -4,7 +4,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.api.auth import router as auth_router
 from app.api.experts import router as experts_router
 from app.api.workflows import router as workflows_router
+from app.api.chat import router as chat_router
 from app.middleware.ratelimit import RateLimitMiddleware
+
+# Initialize run registry (starts GC thread)
+from app.services.runs.registry import REGISTRY
 
 app = FastAPI(
     title="Aspen Backend",
@@ -26,6 +30,10 @@ app = FastAPI(
         {
             "name": "Services",
             "description": "External service integration - API key management and external user mapping",
+        },
+        {
+            "name": "Chat",
+            "description": "Chat execution - run experts and workflows with real-time logging",
         },
     ],
 )
@@ -75,6 +83,7 @@ if os.getenv("ENABLE_RATELIMIT", "false").lower() == "true":
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(experts_router)
 app.include_router(workflows_router)
+app.include_router(chat_router)
 
 
 @app.get("/")

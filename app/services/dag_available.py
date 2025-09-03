@@ -108,3 +108,28 @@ def _get_all_predecessors(node_id: int, incoming: Dict[int, List[int]]) -> Set[i
                 queue.append(parent_id)
 
     return predecessors
+
+
+def resolve_inputs_for_node(node_id: int, outputs_by_node: Dict[int, Dict]) -> Dict:
+    """
+    Resolve the inputs for a node by merging all predecessor outputs.
+    
+    Args:
+        node_id: The node to resolve inputs for
+        outputs_by_node: Dictionary mapping node_id to their output data
+        
+    Returns:
+        Dictionary containing merged inputs from all predecessors
+    """
+    # For now, we'll do a simple merge of all available outputs
+    # In a real implementation, you might want to be more sophisticated
+    # about handling conflicts or namespacing
+    
+    merged_inputs = {}
+    
+    for predecessor_id, output_data in outputs_by_node.items():
+        if predecessor_id != node_id and output_data:
+            # Merge the output data, with later nodes potentially overriding earlier ones
+            merged_inputs.update(output_data)
+    
+    return merged_inputs

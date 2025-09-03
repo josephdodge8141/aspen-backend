@@ -1,5 +1,5 @@
 import pytest
-from app.services.dag_available import available_data_map, _get_all_predecessors
+from app.services.dag_available import available_data_map, _get_all_predecessors, resolve_inputs_for_node
 from app.models.workflows import Node, NodeNode
 from app.models.common import NodeType
 
@@ -307,3 +307,83 @@ class TestGetAllPredecessors:
 
         assert 3 not in result
         assert result == {1, 2}
+
+
+class TestResolveInputsForNode:
+    def test_resolve_inputs_empty_outputs(self):
+        outputs_by_node = {}
+        result = resolve_inputs_for_node(1, outputs_by_node)
+        assert result == {}
+
+    def test_resolve_inputs_single_predecessor(self):
+        outputs_by_node = {
+            1: {"data": "value1", "count": 5}
+        }
+        result = resolve_inputs_for_node(2, outputs_by_node)
+        assert result == {"data": "value1", "count": 5}
+
+    def test_resolve_inputs_multiple_predecessors(self):
+        outputs_by_node = {
+            1: {"data": "from_node_1", "shared": "first"},
+            2: {"result": "from_node_2", "shared": "second"},
+            3: {"output": "from_node_3"}
+        }
+        result = resolve_inputs_for_node(4, outputs_by_node)
+        
+        # Should merge all outputs, with later nodes overriding earlier ones
+        expected = {
+            "data": "from_node_1",
+            "result": "from_node_2", 
+            "output": "from_node_3",
+            "shared": "second"  # Last one wins
+        }
+        assert result == expected
+
+    def test_resolve_inputs_excludes_self(self):
+        outputs_by_node = {
+            1: {"data": "from_node_1"},
+            2: {"data": "from_self"},  # This should be excluded
+            3: {"result": "from_node_3"}
+        }
+        result = resolve_inputs_for_node(2, outputs_by_node)
+        
+        # Should not include output from node 2 itself
+        expected = {
+            "data": "from_node_1",
+            "result": "from_node_3"
+        }
+        assert result == expected
+
+    def test_resolve_inputs_with_empty_outputs(self):
+        outputs_by_node = {
+            1: {"data": "value1"},
+            2: {},  # Empty output
+            3: None,  # None output
+            4: {"result": "value4"}
+        }
+        result = resolve_inputs_for_node(5, outputs_by_node)
+        
+        # Should only include non-empty outputs
+        expected = {
+            "data": "value1",
+            "result": "value4"
+        }
+        assert result == expected
+
+    def test_resolve_inputs_diamond_pattern(self):
+        """Test diamond pattern where D receives union of A,B,C outputs."""
+        outputs_by_node = {
+            1: {"source": "A", "step": 1},  # Node A
+            2: {"processed": "B", "step": 2},  # Node B (from A)
+            3: {"filtered": "C", "step": 3}   # Node C (from A)
+        }
+        result = resolve_inputs_for_node(4, outputs_by_node)  # Node D
+        
+        # D should receive union of all predecessor outputs
+        expected = {
+            "source": "A",
+            "processed": "B", 
+            "filtered": "C",
+            "step": 3  # Last value wins
+        }
+        assert result == expected
