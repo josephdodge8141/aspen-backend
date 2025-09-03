@@ -191,24 +191,27 @@ def run_expert(
 
         # Call OpenAI for real response
         logger.log_info(run_id, "Calling OpenAI API", model_name=expert.model_name)
-        
+
         try:
             assistant_response = get_openai_service().chat_completion(
                 messages=[{"role": "user", "content": rendered_prompt}],
                 model=expert.model_name,
                 temperature=expert.input_params.get("temperature", 0.7),
                 max_tokens=expert.input_params.get("max_tokens"),
-                **{k: v for k, v in expert.input_params.items() 
-                   if k not in ["temperature", "max_tokens"]}
+                **{
+                    k: v
+                    for k, v in expert.input_params.items()
+                    if k not in ["temperature", "max_tokens"]
+                },
             )
-            
+
             logger.log_info(
                 run_id,
                 "OpenAI response received",
                 model_name=expert.model_name,
                 response_length=len(assistant_response),
             )
-            
+
         except Exception as e:
             logger.log_error(
                 run_id,
@@ -280,7 +283,13 @@ def run_workflow(
 
         # Validate DAG
         try:
-            topo_order = validate_dag(nodes, edges)
+            dag_result = validate_dag(nodes, edges)
+            if dag_result.errors:
+                raise ValueError("; ".join(dag_result.errors))
+
+            # Convert node IDs back to Node objects in topological order
+            node_map = {node.id: node for node in nodes}
+            topo_order = [node_map[node_id] for node_id in dag_result.topo_order]
         except ValueError as e:
             logger.log_error(
                 run_id,

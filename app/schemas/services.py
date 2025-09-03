@@ -37,4 +37,4 @@ class ServiceSegmentCreate(ServiceSegmentBase):
 class ServiceSegmentRead(SQLModel):
     id: int
     service_id: int
-    name: str 
+    name: str

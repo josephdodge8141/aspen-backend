@@ -38,25 +38,21 @@ class EmbedService(NodeService):
     ) -> Dict[str, Any]:
         input_text = inputs.get("input", "")
         model_name = metadata.get("model_name", "text-embedding-3-small")
-        
+
         if not input_text:
             return {"embedding": [], "error": "No input text provided"}
-        
+
         try:
             response = get_openai_service().client.embeddings.create(
-                model=model_name,
-                input=input_text
+                model=model_name, input=input_text
             )
             embedding = response.data[0].embedding
-            
+
             return {
                 "embedding": embedding,
                 "dimensions": len(embedding),
                 "model": model_name,
-                "input_length": len(input_text)
+                "input_length": len(input_text),
             }
         except Exception as e:
-            return {
-                "embedding": [],
-                "error": f"Failed to create embedding: {str(e)}"
-            }
+            return {"embedding": [], "error": f"Failed to create embedding: {str(e)}"}

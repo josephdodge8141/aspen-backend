@@ -38,19 +38,19 @@ def test_data(db_session: Session):
 
     # Create member
     import uuid
+
     unique_email = f"test-{uuid.uuid4()}@example.com"
-    member = Member(
-        first_name="Test",
-        last_name="User",
-        email=unique_email
-    )
+    member = Member(first_name="Test", last_name="User", email=unique_email)
     db_session.add(member)
     db_session.commit()
     db_session.refresh(member)
 
-    # Create user
+    # Create user linked to member
     user = User(
-        email=unique_email, username=f"testuser-{uuid.uuid4()}", hashed_password="hashed_password"
+        email=unique_email,
+        username=f"testuser-{uuid.uuid4()}",
+        hashed_password="hashed_password",
+        member_id=member.id,
     )
     db_session.add(user)
     db_session.commit()
@@ -93,9 +93,7 @@ def test_data(db_session: Session):
     db_session.refresh(node2)
 
     # Create edge
-    edge = NodeNode(
-        workflow_id=workflow.id, parent_node_id=node1.id, child_node_id=node2.id
-    )
+    edge = NodeNode(parent_id=node1.id, child_id=node2.id)
     db_session.add(edge)
     db_session.commit()
 
@@ -104,7 +102,7 @@ def test_data(db_session: Session):
         name=f"Test Service {uuid.uuid4()}",
         environment=Environment.dev,
         api_key_hash="test_hash",
-        api_key_last4="hash"
+        api_key_last4="hash",
     )
     db_session.add(service)
     db_session.commit()
@@ -131,19 +129,39 @@ def auth_headers(test_data):
 
 
 @pytest.fixture
+def client_with_db(db_session):
+    """Create a test client with database session override"""
+    from app.api.deps import get_db_session
+    from app.main import app
+
+    def get_test_db():
+        return db_session
+
+    app.dependency_overrides[get_db_session] = get_test_db
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+    # Clean up override
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
 def service_headers():
     return {"X-API-Key": "test_key"}
 
 
 class TestRunWorkflow:
-    def test_run_workflow_success_with_user(self, client, test_data, auth_headers):
+    def test_run_workflow_success_with_user(
+        self, client_with_db, test_data, auth_headers
+    ):
         """Test successful workflow run with user authentication."""
         request_data = {
             "workflow_id": test_data["workflow"].id,
             "starting_inputs": {"input": "test data"},
         }
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run", json=request_data, headers=auth_headers
         )
 
@@ -164,9 +182,9 @@ class TestRunWorkflow:
         assert step2["node_type"] == "filter"
         assert "output" in step2
 
-    @patch("app.security.apikeys.hash_api_key")
+    @patch("app.api.deps.hash_api_key")
     def test_run_workflow_success_with_service(
-        self, mock_hash, client, test_data, service_headers
+        self, mock_hash, client_with_db, test_data, service_headers
     ):
         """Test successful workflow run with service authentication."""
         mock_hash.return_value = "test_hash"
@@ -176,7 +194,7 @@ class TestRunWorkflow:
             "starting_inputs": {"data": "service input"},
         }
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run", json=request_data, headers=service_headers
         )
 
@@ -187,40 +205,43 @@ class TestRunWorkflow:
         assert "steps" in data
         assert len(data["steps"]) == 2
 
-    def test_run_workflow_not_found(self, client, auth_headers):
+    def test_run_workflow_not_found(self, client_with_db, auth_headers):
         """Test workflow not found error."""
         request_data = {"workflow_id": 99999, "starting_inputs": {"input": "test"}}
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run", json=request_data, headers=auth_headers
         )
 
         assert response.status_code == 404
         assert "Workflow not found" in response.text
 
-    def test_run_workflow_no_auth(self, client, test_data):
+    def test_run_workflow_no_auth(self, client_with_db, test_data):
         """Test authentication required error."""
         request_data = {
             "workflow_id": test_data["workflow"].id,
             "starting_inputs": {"input": "test"},
         }
 
-        response = client.post("/api/v1/chat/workflows:run", json=request_data)
+        response = client_with_db.post("/api/v1/chat/workflows:run", json=request_data)
 
         assert response.status_code == 401
 
-    @patch("app.security.apikeys.hash_api_key")
+    @patch("app.api.deps.hash_api_key")
     def test_run_workflow_service_not_linked(
-        self, mock_hash, client, test_data, db_session
+        self, mock_hash, client_with_db, test_data, db_session
     ):
         """Test service not authorized for workflow."""
         mock_hash.return_value = "different_hash"
 
         # Create another service not linked to the workflow
+        import uuid
+
         other_service = Service(
-            name="Other Service",
+            name=f"Other Service {uuid.uuid4()}",
+            environment=Environment.dev,
             api_key_hash="different_hash",
-            team_id=test_data["team"].id,
+            api_key_last4="diff",
         )
         db_session.add(other_service)
         db_session.commit()
@@ -230,7 +251,7 @@ class TestRunWorkflow:
             "starting_inputs": {"input": "test"},
         }
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run",
             json=request_data,
             headers={"X-API-Key": "other_key"},
@@ -239,7 +260,9 @@ class TestRunWorkflow:
         assert response.status_code == 403
         assert "not authorized to use this workflow" in response.text
 
-    def test_run_workflow_user_not_team_member(self, client, test_data, db_session):
+    def test_run_workflow_user_not_team_member(
+        self, client_with_db, test_data, db_session
+    ):
         """Test user not team member error."""
         # Create another user not in the team
         other_user = User(
@@ -259,17 +282,19 @@ class TestRunWorkflow:
             "starting_inputs": {"input": "test"},
         }
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run", json=request_data, headers=headers
         )
 
         assert response.status_code == 403
 
-    def test_run_workflow_minimal_request(self, client, test_data, auth_headers):
+    def test_run_workflow_minimal_request(
+        self, client_with_db, test_data, auth_headers
+    ):
         """Test workflow run with minimal request data."""
         request_data = {"workflow_id": test_data["workflow"].id}
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run", json=request_data, headers=auth_headers
         )
 
@@ -279,14 +304,13 @@ class TestRunWorkflow:
         assert "steps" in data
 
     def test_run_workflow_invalid_dag(
-        self, client, test_data, auth_headers, db_session
+        self, client_with_db, test_data, auth_headers, db_session
     ):
         """Test workflow with invalid DAG (cycle)."""
         # Create a cycle by adding edge from node2 back to node1
         cycle_edge = NodeNode(
-            workflow_id=test_data["workflow"].id,
-            parent_node_id=test_data["nodes"][1].id,  # node2
-            child_node_id=test_data["nodes"][0].id,  # node1
+            parent_id=test_data["nodes"][1].id,  # node2
+            child_id=test_data["nodes"][0].id,  # node1
         )
         db_session.add(cycle_edge)
         db_session.commit()
@@ -296,7 +320,7 @@ class TestRunWorkflow:
             "starting_inputs": {"input": "test"},
         }
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run", json=request_data, headers=auth_headers
         )
 
@@ -304,7 +328,7 @@ class TestRunWorkflow:
         assert "Invalid workflow DAG" in response.text
 
     def test_run_workflow_empty_workflow(
-        self, client, test_data, auth_headers, db_session
+        self, client_with_db, test_data, auth_headers, db_session
     ):
         """Test workflow with no nodes."""
         # Create empty workflow
@@ -322,7 +346,7 @@ class TestRunWorkflow:
             "starting_inputs": {"input": "test"},
         }
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run", json=request_data, headers=auth_headers
         )
 
@@ -332,7 +356,9 @@ class TestRunWorkflow:
         assert "steps" in data
         assert len(data["steps"]) == 0  # No steps for empty workflow
 
-    def test_run_workflow_with_starting_inputs(self, client, test_data, auth_headers):
+    def test_run_workflow_with_starting_inputs(
+        self, client_with_db, test_data, auth_headers
+    ):
         """Test workflow run with starting inputs."""
         request_data = {
             "workflow_id": test_data["workflow"].id,
@@ -342,7 +368,7 @@ class TestRunWorkflow:
             },
         }
 
-        response = client.post(
+        response = client_with_db.post(
             "/api/v1/chat/workflows:run", json=request_data, headers=auth_headers
         )
 

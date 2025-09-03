@@ -44,19 +44,19 @@ class JobService(NodeService):
         model_name = metadata.get("model_name", "gpt-4")
         temperature = metadata.get("temperature", 0.7)
         max_tokens = metadata.get("max_tokens")
-        
+
         if not prompt:
             raise ValueError("Job node requires a 'prompt' in metadata")
-        
+
         # Check if we need structured output
         if "structured_output" in inputs and inputs["structured_output"]:
             structured_output = inputs["structured_output"]
             shape = extract_shape_from_structured_output(structured_output)
-            
+
             if shape:
                 # Create a dynamic Pydantic model from the shape
                 response_model = self._create_response_model(shape)
-                
+
                 try:
                     result = get_openai_service().structured_completion(
                         messages=[{"role": "user", "content": prompt}],
@@ -83,7 +83,7 @@ class JobService(NodeService):
                 return {"text": response}
             except Exception as e:
                 return {"text": f"Error: {str(e)}"}
-    
+
     def _create_response_model(self, shape: Dict[str, Any]) -> BaseModel:
         fields = {}
         for key, value in shape.items():
@@ -98,5 +98,5 @@ class JobService(NodeService):
             else:
                 # Default to string for unknown types
                 fields[key] = (str, ...)
-        
+
         return create_model("DynamicResponse", **fields)

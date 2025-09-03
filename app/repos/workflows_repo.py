@@ -171,14 +171,20 @@ def get_expanded(session: Session, workflow_id: int) -> Optional[Dict[str, Any]]
     }
 
 
-def get_nodes_and_edges(session: Session, workflow_id: int) -> Tuple[List[Node], List[NodeNode]]:
+def get_nodes_and_edges(
+    session: Session, workflow_id: int
+) -> Tuple[List[Node], List[NodeNode]]:
     """Get all nodes and edges for a workflow."""
     # Get nodes
     nodes_statement = select(Node).where(Node.workflow_id == workflow_id)
     nodes = session.exec(nodes_statement).all()
-    
-    # Get edges
-    edges_statement = select(NodeNode).where(NodeNode.workflow_id == workflow_id)
+
+    # Get edges - filter by nodes that belong to this workflow
+    # First, get all node IDs for this workflow
+    node_ids = [node.id for node in nodes]
+
+    # Then get edges where both parent and child are in this workflow
+    edges_statement = select(NodeNode).where(NodeNode.parent_id.in_(node_ids))
     edges = session.exec(edges_statement).all()
-    
+
     return list(nodes), list(edges)

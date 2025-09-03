@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch, MagicMock
 from app.services.nodes.ai_embed import EmbedService
 from app.services.nodes.base import NodeValidationError
 
@@ -62,10 +63,27 @@ class TestEmbedService:
 
         assert result == {"embedded": "boolean", "count": "number"}
 
-    def test_execute_returns_expected_result(self):
-        inputs = {"text": "Sample text"}
-        metadata = {"vector_store_id": "vs_test", "input_selector": "input.text"}
+    @patch("app.services.nodes.ai_embed.get_openai_service")
+    def test_execute_returns_expected_result(self, mock_service):
+        # Mock OpenAI service to return embedding response
+        mock_openai = mock_service.return_value
+        mock_response = MagicMock()
+        mock_response.data[0].embedding = [0.1, 0.2, 0.3]
+        mock_openai.client.embeddings.create.return_value = mock_response
+
+        inputs = {
+            "input": "Sample text"
+        }  # Changed from "text" to "input" to match implementation
+        metadata = {
+            "vector_store_id": "vs_test",
+            "model_name": "text-embedding-3-small",
+        }
 
         result = self.service.execute(inputs, metadata)
 
-        assert result == {"embedded": True, "count": 1}
+        assert result == {
+            "embedding": [0.1, 0.2, 0.3],
+            "dimensions": 3,
+            "model": "text-embedding-3-small",
+            "input_length": 11,
+        }

@@ -1,4 +1,5 @@
 import pytest
+from unittest.mock import patch
 from app.services.nodes.ai_job import JobService
 from app.services.nodes.base import NodeValidationError
 
@@ -125,7 +126,15 @@ class TestJobService:
 
         assert result == {"analysis": {"sentiment": "string", "score": "number"}}
 
-    def test_execute_with_structured_output(self):
+    @patch("app.services.nodes.ai_job.get_openai_service")
+    def test_execute_with_structured_output(self, mock_service):
+        # Mock OpenAI service to return structured response
+        mock_openai = mock_service.return_value
+        mock_openai.structured_completion.return_value = {
+            "summary": "Test summary",
+            "confidence": 0.85,
+        }
+
         inputs = {
             "text": "Sample text",
             "structured_output": {
@@ -140,21 +149,31 @@ class TestJobService:
 
         result = self.service.execute(inputs, metadata)
 
-        assert result == {"summary": None, "confidence": None}
+        assert result == {"summary": "Test summary", "confidence": 0.85}
 
-    def test_execute_without_structured_output(self):
+    @patch("app.services.nodes.ai_job.get_openai_service")
+    def test_execute_without_structured_output(self, mock_service):
+        # Mock OpenAI service to return text response
+        mock_openai = mock_service.return_value
+        mock_openai.generate_text.return_value = "Generated response"
+
         inputs = {"text": "Sample text"}
         metadata = {"prompt": "Test prompt", "model_name": "gpt-4"}
 
         result = self.service.execute(inputs, metadata)
 
-        assert result == {"text": None}
+        assert result == {"text": "Generated response"}
 
-    def test_execute_empty_structured_output(self):
+    @patch("app.services.nodes.ai_job.get_openai_service")
+    def test_execute_empty_structured_output(self, mock_service):
+        # Mock OpenAI service to return text response
+        mock_openai = mock_service.return_value
+        mock_openai.generate_text.return_value = "Generated response"
+
         inputs = {"text": "Sample text", "structured_output": {}}
         metadata = {"prompt": "Test prompt", "model_name": "gpt-4"}
 
         result = self.service.execute(inputs, metadata)
 
         # When structured_output is empty, should return default text shape
-        assert result == {"text": None}
+        assert result == {"text": "Generated response"}
