@@ -1,6 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import router as auth_router
 from app.api.experts import router as experts_router
 from app.api.workflows import router as workflows_router
@@ -36,6 +37,40 @@ app = FastAPI(
             "name": "Chat",
             "description": "Chat execution - run experts and workflows with real-time logging",
         },
+    ],
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",  # React default
+        "http://localhost:3001",  # Alternative React port
+        "http://localhost:5173",  # Vite default
+        "http://localhost:5174",  # Alternative Vite port
+        "http://localhost:8080",  # Vue default
+        "http://localhost:4200",  # Angular default
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        # Add production origins as needed
+        # "https://your-frontend-domain.com",
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-API-Key",
+        "X-Requested-With",
+        "Cache-Control",
+    ],
+    expose_headers=[
+        "Content-Length",
+        "Content-Type",
+        "X-Total-Count",
     ],
 )
 

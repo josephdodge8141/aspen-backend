@@ -6,7 +6,7 @@ from typing import Dict, Any
 from app.api.deps import get_db_session
 from app.models.users import User
 from app.models.team import Member
-from app.security.passwords import verify_password
+from app.security.passwords import verify_password, hash_password
 from app.security.jwt import create_access_token
 
 
@@ -18,9 +18,62 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str
+
+
+class RegisterResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user_id: int
+    message: str
+
+
+@router.post("/register", response_model=RegisterResponse, status_code=201)
+def register(
+    request: RegisterRequest, session: Session = Depends(get_db_session)
+) -> RegisterResponse:
+    # Check if member already exists
+    existing_member = session.exec(
+        select(Member).where(Member.email == request.email)
+    ).first()
+    if existing_member:
+        raise HTTPException(status_code=409, detail="Email already registered")
+
+    # Create member
+    member = Member(
+        first_name=request.first_name,
+        last_name=request.last_name,
+        email=request.email,
+    )
+    session.add(member)
+    session.commit()
+    session.refresh(member)
+
+    # Create user with hashed password
+    password_hash = hash_password(request.password)
+    user = User(member_id=member.id, password_hash=password_hash)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+
+    # Create JWT token
+    access_token = create_access_token(user_id=user.id)
+
+    return RegisterResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user_id=user.id,
+        message="Account created successfully",
+    )
 
 
 @router.post("/login", response_model=LoginResponse)
